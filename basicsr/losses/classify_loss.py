@@ -94,3 +94,72 @@ class FocalLoss(nn.Module):
         elif self.reduction == "sum":
             loss = loss.sum()
         return loss
+
+
+@LOSS_REGISTRY.register()
+class MultiLabelBCELoss(nn.Module):
+    """Multi-Label BCE Loss for compound degradation classification.
+
+    Converts single integer dataset_idx to multi-hot vectors using a label_map,
+    then applies BCEWithLogitsLoss. This enables the encoder to learn that an
+    image can have multiple simultaneous degradations (e.g., haze AND rain).
+
+    The label_map maps each dataset index to a list of primitive degradation
+    indices that are present. For CDD-11 with 4 primitives [low, haze, rain, snow]:
+        0: low       -> [1, 0, 0, 0]
+        1: haze      -> [0, 1, 0, 0]
+        2: rain      -> [0, 0, 1, 0]
+        3: snow      -> [0, 0, 0, 1]
+        4: low+haze  -> [1, 1, 0, 0]
+        ...etc.
+    """
+
+    def __init__(
+        self,
+        label_map: list = None,
+        num_primitives: int = 4,
+        reduction: str = "mean",
+        pos_weight: float = 1.0,
+    ):
+        super().__init__()
+        self.num_primitives = num_primitives
+        self.reduction = reduction
+
+        # Default CDD-11 label map: 11 compound categories -> 4 primitives
+        # Primitives: [low-light, haze, rain, snow]
+        if label_map is None:
+            label_map = [
+                [1, 0, 0, 0],  # 0: low
+                [0, 1, 0, 0],  # 1: haze
+                [0, 0, 1, 0],  # 2: rain
+                [0, 0, 0, 1],  # 3: snow
+                [1, 1, 0, 0],  # 4: low+haze
+                [1, 0, 1, 0],  # 5: low+rain
+                [1, 0, 0, 1],  # 6: low+snow
+                [0, 1, 1, 0],  # 7: haze+rain
+                [0, 1, 0, 1],  # 8: haze+snow
+                [1, 1, 1, 0],  # 9: low+haze+rain
+                [1, 1, 0, 1],  # 10: low+haze+snow
+            ]
+
+        self.register_buffer(
+            "label_map_tensor",
+            torch.tensor(label_map, dtype=torch.float32),
+        )
+
+        pw = torch.ones(num_primitives) * pos_weight
+        self.bce_loss = nn.BCEWithLogitsLoss(
+            reduction=reduction, pos_weight=pw
+        )
+
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        """
+        Args:
+            x: (batch_size, num_primitives) - raw logits from classifier
+            y: (batch_size,) - integer dataset indices
+        Returns:
+            BCE loss between sigmoid(x) and multi-hot targets
+        """
+        # Convert integer labels to multi-hot vectors
+        multi_hot = self.label_map_tensor[y.long()]  # (batch_size, num_primitives)
+        return self.bce_loss(x, multi_hot)

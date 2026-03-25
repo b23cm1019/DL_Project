@@ -196,6 +196,7 @@ class NAFNetBaseline(nn.Module):
         enc_blk_nums=[],
         dec_blk_nums=[],
         window_size=8,
+        prompt_dim=0,
     ):
         super().__init__()
 
@@ -234,6 +235,16 @@ class NAFNetBaseline(nn.Module):
             *[NAFBlock(chan) for _ in range(middle_blk_num)]
         )
 
+        self.prompt_dim = prompt_dim
+        if prompt_dim > 0:
+            self.prompt_proj = nn.Sequential(
+                nn.Linear(prompt_dim, chan),
+                nn.ReLU(inplace=True),
+                nn.Linear(chan, chan)
+            )
+        else:
+            self.prompt_proj = None
+
         for i, num in enumerate(dec_blk_nums):
             self.ups.append(
                 nn.Sequential(
@@ -247,7 +258,7 @@ class NAFNetBaseline(nn.Module):
                 nn.Sequential(*[NAFBlock(chan) for _ in range(num)]),
             )
 
-    def forward(self, inp, hook=False):
+    def forward(self, inp, prompt=None, hook=False):
         # B, C, H, W = inp.shape
         x = self.intro(inp)
 
@@ -259,6 +270,10 @@ class NAFNetBaseline(nn.Module):
             x = down(x)
 
         x = self.middle_blks(x)
+        
+        if self.prompt_proj is not None and prompt is not None:
+            p = self.prompt_proj(prompt).unsqueeze(-1).unsqueeze(-1)
+            x = x + p
 
         for i, (up, enc_skip) in enumerate(zip(self.ups, encs[::-1])):
             x = up(x)

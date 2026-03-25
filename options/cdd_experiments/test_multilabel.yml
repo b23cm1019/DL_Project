@@ -1,0 +1,137 @@
+name: Test_Row_C
+model_type: SRModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+datasets:
+  test_1:
+    name: low
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_2:
+    name: haze
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/haze
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_3:
+    name: rain
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/rain
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_4:
+    name: snow
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/snow
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_5:
+    name: low_haze
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low_haze
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_6:
+    name: low_rain
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low_rain
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_7:
+    name: low_snow
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low_snow
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_8:
+    name: haze_rain
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/haze_rain
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_9:
+    name: haze_snow
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/haze_snow
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_10:
+    name: low_haze_rain
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low_haze_rain
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+  test_11:
+    name: low_haze_snow
+    type: PairedImageDataset
+    dataroot_gt: path/to/CDD/test/clear
+    dataroot_lq: path/to/CDD/test/low_haze_snow
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+network_g:
+  type: NAFNet
+  width: 64
+  enc_blk_nums:
+  - 1
+  - 1
+  - 1
+  - 28
+  middle_blk_num: 1
+  dec_blk_nums:
+  - 1
+  - 1
+  - 1
+  - 1
+  window_size: 16
+path:
+  pretrain_network_g: experiments/Row_C_MultiLabel_Finetune_CDD11/models/net_g_latest.pth
+  param_key_g: params_ema
+  strict_load_g: true
+val:
+  save_img: true
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+      image_range: 1.0
+    ssim:
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: false
+      image_range: 1.0
