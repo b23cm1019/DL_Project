@@ -8,8 +8,8 @@ datasets:
   train_1:
     name: low
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low
     io_backend:
       type: disk
     gt_size: 128
@@ -19,8 +19,8 @@ datasets:
   train_2:
     name: haze
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/haze
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/haze
     io_backend:
       type: disk
     gt_size: 128
@@ -30,8 +30,8 @@ datasets:
   train_3:
     name: rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/rain
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/rain
     io_backend:
       type: disk
     gt_size: 128
@@ -41,8 +41,8 @@ datasets:
   train_4:
     name: snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/snow
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/snow
     io_backend:
       type: disk
     gt_size: 128
@@ -52,8 +52,8 @@ datasets:
   train_5:
     name: low_haze
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low_haze
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low_haze
     io_backend:
       type: disk
     gt_size: 128
@@ -63,8 +63,8 @@ datasets:
   train_6:
     name: low_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low_rain
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low_rain
     io_backend:
       type: disk
     gt_size: 128
@@ -74,8 +74,8 @@ datasets:
   train_7:
     name: low_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low_snow
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low_snow
     io_backend:
       type: disk
     gt_size: 128
@@ -85,8 +85,8 @@ datasets:
   train_8:
     name: haze_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/haze_rain
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/haze_rain
     io_backend:
       type: disk
     gt_size: 128
@@ -96,8 +96,8 @@ datasets:
   train_9:
     name: haze_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/haze_snow
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/haze_snow
     io_backend:
       type: disk
     gt_size: 128
@@ -107,8 +107,8 @@ datasets:
   train_10:
     name: low_haze_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low_haze_rain
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low_haze_rain
     io_backend:
       type: disk
     gt_size: 128
@@ -118,8 +118,8 @@ datasets:
   train_11:
     name: low_haze_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/train/clear
-    dataroot_lq: path/to/CDD/train/low_haze_snow
+    dataroot_gt: /data/datasets/CDD-11_train/CDD-11_train/clear
+    dataroot_lq: /data/datasets/CDD-11_train/CDD-11_train/low_haze_snow
     io_backend:
       type: disk
     gt_size: 128
@@ -129,8 +129,8 @@ datasets:
   val_1:
     name: low
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -138,8 +138,8 @@ datasets:
   val_2:
     name: haze
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/haze
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/haze
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -147,8 +147,8 @@ datasets:
   val_3:
     name: rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/rain
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/rain
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -156,8 +156,8 @@ datasets:
   val_4:
     name: snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/snow
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/snow
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -165,8 +165,8 @@ datasets:
   val_5:
     name: low_haze
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low_haze
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low_haze
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -174,8 +174,8 @@ datasets:
   val_6:
     name: low_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low_rain
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low_rain
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -183,8 +183,8 @@ datasets:
   val_7:
     name: low_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low_snow
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low_snow
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -192,8 +192,8 @@ datasets:
   val_8:
     name: haze_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/haze_rain
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/haze_rain
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -201,8 +201,8 @@ datasets:
   val_9:
     name: haze_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/haze_snow
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/haze_snow
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -210,8 +210,8 @@ datasets:
   val_10:
     name: low_haze_rain
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low_haze_rain
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low_haze_rain
     io_backend:
       type: disk
     num_worker_per_gpu: 1
@@ -219,8 +219,8 @@ datasets:
   val_11:
     name: low_haze_snow
     type: PairedImageDataset
-    dataroot_gt: path/to/CDD/val/clear
-    dataroot_lq: path/to/CDD/val/low_haze_snow
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/datasets/CDD-11_test/low_haze_snow
     io_backend:
       type: disk
     num_worker_per_gpu: 1
