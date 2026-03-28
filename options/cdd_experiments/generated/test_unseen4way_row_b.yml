@@ -1,0 +1,48 @@
+name: Test_Unseen4Way_Row_B
+model_type: SRModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+datasets:
+  test_1:
+    name: low_haze_rain_snow
+    type: PairedImageDataset
+    dataroot_gt: /data/datasets/CDD-11_test/clear
+    dataroot_lq: /data/b23_nishchal_badaya/dl/DL_Project/report/unseen_4way/data/low_haze_rain_snow
+    io_backend:
+      type: disk
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+network_g:
+  type: NAFNet
+  width: 64
+  enc_blk_nums:
+  - 1
+  - 1
+  - 1
+  - 28
+  middle_blk_num: 1
+  dec_blk_nums:
+  - 1
+  - 1
+  - 1
+  - 1
+  window_size: 16
+path:
+  pretrain_network_g: experiments/Row_B_Baseline_Finetune_CDD11/models/net_g_latest.pth
+  param_key_g: params_ema
+  strict_load_g: true
+val:
+  save_img: true
+  suffix: row_b
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+      image_range: 1.0
+    ssim:
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: false
+      image_range: 1.0

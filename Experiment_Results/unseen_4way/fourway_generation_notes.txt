@@ -1,0 +1,4 @@
+Synthetic unseen 4-way degradation folder: low_haze_rain_snow
+Generation rule per image: clip(low_haze_rain + low_haze_snow - low_haze, 0, 255)
+Interpretation: rain and snow overlays are composed on top of the shared low+haze base.
+This is an out-of-distribution qualitative stress test, not an official CDD-11 benchmark split.

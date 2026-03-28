@@ -1,142 +1,305 @@
-# Universal Image Restoration Pre-training via Degradation Classification ([ICLR 2025](https://openreview.net/forum?id=PacBhLzeGO))
+# Weak-Supervision Enhancements to DCPT on CDD-11
 
-[JiaKui Hu](https://scholar.google.com/citations?user=VagFt-sAAAAJ), [Lujia Jin](https://scholar.google.com/citations?user=-BWasB8AAAAJ), [Zhengjian Yao](https://scholar.google.com/citations?user=D8rEFlEAAAAJ), [Yanye Lu](https://scholar.google.com/citations?user=WSFToOMAAAAJ)*
+This repository contains our course project built on top of the DCPT codebase for mixed-degradation image restoration. We study whether smarter weak supervision can still improve restoration quality under a tight compute budget.
 
-MILab, Peking University
+Our work keeps the original DCPT idea of degradation-classification-based pretraining, but adds two practical extensions:
 
-[中文解读](https://blog.jongkhu.com/article/dcpt)
+- `Row C`: replace flat 11-class degradation supervision with a 4-dimensional multi-label BCE objective over the primitive degradations `{low-light, haze, rain, snow}`
+- `Row D`: inject the pretrained classifier output back into the restoration network as a semantic soft prompt during finetuning
 
----
+All experiments are run on the `CDD-11` benchmark using `NAFNet` with a reduced schedule of `25k` pretraining iterations and `100k` finetuning iterations.
 
-🚀️🚀️ **News:**
+## Project Summary
 
-- 2025-9-2: Release the train scipts and CDD checkpoints of DCPT.
+The original DCPT paper uses degradation classification as weak supervision for universal image restoration pretraining. We adapt that idea to a constrained project setting and ask:
 
-- 2025-1-23: Our paper was accepted by ICLR 2025.
+1. Does primitive-aware multi-label supervision transfer better than a flat 11-way label?
+2. Can classifier-guided prompt injection further improve restoration during finetuning?
+3. Do these gains persist under reduced compute and on unseen degradation combinations?
 
-- 2025-1-27: Release the inference scripts and pre-trained models of DCPT.
+### Main Findings
 
-**TODO-lists:**
+- `Row C` improves over `Row B` on all 11 CDD-11 test settings.
+- `Row D` achieves the best average PSNR, but `Row C` retains the best average SSIM.
+- On an unseen synthetic 4-way degradation split, `Row C` still performs best on average.
 
-- [x] Release the train scipts.
-- [ ] Handle real-world mixed-degradation images.
+### Average Results on the 11 Standard CDD-11 Settings
 
-## 1. Abstract
+| Model | Description | Avg. PSNR | Avg. SSIM |
+|---|---|---:|---:|
+| Row B | Single-label pretraining + finetuning | 24.4769 | 0.8045 |
+| Row C | Multi-label BCE pretraining + finetuning | 24.7653 | 0.8155 |
+| Row D | Prompt-based finetuning on top of Row C pretraining | **24.8225** | 0.8136 |
 
-This paper proposes the Degradation Classification Pre-Training (DCPT), which enables models to learn how to classify the degradation type of input images for universal image restoration pre-training. Unlike the existing self-supervised pre-training methods, **DCPT utilizes the degradation type of the input image as an extremely weak supervision**, which can be effortlessly obtained, even intrinsic in all image restoration datasets. DCPT comprises two primary stages. Initially, image features are extracted from the encoder. Subsequently, a lightweight decoder, such as ResNet18, is leveraged to classify the degradation type of the input image solely based on the features extracted in the first stage, without utilizing the input image. The encoder is pre-trained with a straightforward yet potent DCPT, which is used to address universal image restoration and achieve outstanding performance. Following DCPT, both convolutional neural networks (CNNs) and transformers demonstrate performance improvements, with gains of up to **2.55 dB in the 10D all-in-one restoration task** and **6.53 dB in the mixed degradation scenarios**. Moreover, previous self-supervised pretraining methods, such as masked image modeling, discard the decoder after pre-training, while our DCPT utilizes the pre-trained parameters more effectively. This superiority arises from the degradation classifier acquired during DCPT, which facilitates transfer learning between models of identical architecture trained on diverse degradation types.
+Key interpretation:
 
-## 2. Results
+- `Row C - Row B = +0.2884 dB / +0.0110 SSIM`
+- `Row D - Row C = +0.0572 dB / -0.0019 SSIM`
 
-![](./assets/chart.png)
+### Unseen 4-Way Stress Test
 
-<details>
-<summary><strong>5D All-in-one Image Restoration</strong> (click to expand) </summary>
+We also evaluate on an out-of-distribution synthetic split containing `low + haze + rain + snow`, which none of the models saw during training or standard testing.
 
-![](./assets/5d.png)
+| Model | Avg. PSNR | Avg. SSIM |
+|---|---:|---:|
+| Row B | 17.2459 | 0.5656 |
+| Row C | **17.3904** | **0.5763** |
+| Row D | 17.2794 | 0.5721 |
 
-</details>
+This supports the main qualitative conclusion of the project: the multi-label formulation transfers more robustly than the single-label baseline when degradations become more compositional.
 
-<details>
-<summary><strong>10D All-in-one Image Restoration</strong> (click to expand) </summary>
+## What We Added Compared to the Original DCPT Repository
 
-Averaged:
+Compared to the original paper codebase, this repository adds:
 
-![](./assets/10d.png)
+- a full `CDD-11` ablation plan for `Row A / B / C / D`
+- a custom multi-label BCE pretraining setup for compositional degradations
+- a prompt-based finetuning path that consumes the classifier prediction as a soft semantic condition
+- experiment runners for stage-wise execution and resume-friendly workflows
+- scripts to generate project figures, plots, qualitative cards, and report assets
+- an unseen 4-way degradation stress test that extends beyond the standard CDD-11 combinations
 
-PSNR and SSIM:
+## Repository Structure
 
-![](./assets/10d_me.png)
-
-</details>
-
-<details>
-<summary><strong>Mixed Degradation Image Restoration</strong> (click to expand) </summary>
-
-![](./assets/mixed.png)
-
-</details>
-
-## 3. Quick Start
-
-### Setup
-
-Clone via Github:
-
-```shell
-git clone https://github.com/MILab-PKU/dcpt.git
-cd dcpt
+```text
+.
+├── basicsr/                      # Core training / testing / model code
+├── options/
+│   └── cdd_experiments/         # YAML configs for Row B / C / D experiments
+├── scripts/                     # Utilities for figure generation and analysis
+├── run_experiments.sh           # Main launcher for all experiment stages
+├── EXPERIMENTAL_SETUP.md        # Detailed plan, dependencies, and rationale
+├── Experiment_Results/          # Final figures, qualitative cards, unseen 4-way assets
+├── Model_outputs/               # Saved output images from test-time inference
+└── README.md                    # This file
 ```
 
-You also can create a new environment to avoid conflicts:
+### Important Subfolders
 
-```
-conda env create -f environment.yml
-```
+- [options/cdd_experiments](./options/cdd_experiments): training and testing configs for all rows
+- [Experiment_Results/figures](./Experiment_Results/figures): final report plots such as loss curves and gain plots
+- [Experiment_Results/qualitative_cards](./Experiment_Results/qualitative_cards): standalone visual comparisons with zoom crops
+- [Experiment_Results/unseen_4way](./Experiment_Results/unseen_4way): synthetic 4-way evaluation assets
+- [Model_outputs](./Model_outputs): saved restoration outputs from the tested models
 
-> !!! Remove `basicsr` in your python environment !!!
+## Visual Results
 
-### Pre-train
+### Metric Gain Visualization
 
-```shell
-BASICSR_JIT=True torchrun --master-port 12345 --nproc_per_node 4 basicsr/all_in_one_train.py -opt options/all_in_one/pretrain/pretrain_NAFNet_AIO_5d.yml --launcher pytorch
-# see `pretrain.sh` for more options.
-```
+![PSNR gain plot](./Experiment_Results/figures/psnr_gains.png)
 
-### Finetune
+### Example Qualitative Comparisons
 
-```shell
-# change the path of pre-trained checkpoint in `pretrain_network_g` in the config file.
-BASICSR_JIT=True torchrun --master-port 12345 --nproc_per_node 4 basicsr/all_in_one_train.py -opt options/all_in_one/train/train_NAFNet_AIO_5d.yml --launcher pytorch
-# see `finetune.sh` for more options.
-```
+`Row C vs Row B` on a haze-heavy case:
 
-### Transfer
+![Row C vs Row B qualitative](./Experiment_Results/qualitative_cards/row_c_vs_row_b/03_haze_00673_row_c_minus_row_b.png)
 
-```shell
-# change the path of pre-trained checkpoint in `pretrain_network_g` in the config file.
-BASICSR_JIT=True torchrun --master-port 12345 --nproc_per_node 4 basicsr/train.py -opt options/transfer/train_Restormer_DMB_from_DN_dc_guided.yml --launcher pytorch
-# see `options/transfer` for more options.
-```
+`Row D vs Row C` on a mixed degradation case:
 
-### Test
+![Row D vs Row C qualitative](./Experiment_Results/qualitative_cards/row_d_vs_row_c/01_haze_rain_04435_row_d_minus_row_c.png)
 
-Download [**pretrained models**](https://drive.google.com/drive/folders/17XKKgX3gbEWoma6ZQeRh8Dfazxy1iQpj?usp=drive_link), and put them in `./pretrained_models`.
+`Unseen 4-way` stress test example:
 
-To reproduce the results in our paper, please modify the dataset path and model path, then run:
+![Unseen 4-way qualitative](./Experiment_Results/unseen_4way/cards/row_c_vs_row_b/01_00994_row_c_minus_row_b.png)
 
-```shell
-BASICSR_JIT=True python basicsr/test.py -opt options/all_in_one/test/test_NAFNet_5d.yml
-# you can modify the path of config file after `-opt`.
-```
+## Experimental Design
 
-### KNN and T-SNE
+The full motivation and roadmap are documented in [EXPERIMENTAL_SETUP.md](./EXPERIMENTAL_SETUP.md). The experiment rows are:
 
-```shell
-python knn_gen.py # provide code is only for feature extraction of random initialized model.
-python knn.py
-python t_sne.py
-```
+- `Row A`: released DCPT `NAFNet` checkpoint used as a reference ceiling
+- `Row B`: reduced-compute baseline using single-label degradation classification
+- `Row C`: replace the pretraining label with a 4D multi-hot target and BCE loss
+- `Row D`: keep the Row C pretrained classifier and inject its output as a soft prompt during finetuning
 
-## Citation
+In this cleaned GitHub version, `run_experiments.sh` directly exposes the `Row B / C / D` stages. `Row A` is kept as a reference result from the released DCPT checkpoint rather than as a separate launcher stage.
 
-If you find this repository useful, please consider giving a star ⭐ and citation.
+### Why Multi-Label BCE Helps
 
-```
-@article{hu2025universal,
-  title={Universal image restoration pre-training via degradation classification},
-  author={Hu, JiaKui and Jin, Lujia and Yao, Zhengjian and Lu, Yanye},
-  journal={arXiv preprint arXiv:2501.15510},
-  year={2025}
-}
-@article{hu2025universal,
-  title={Universal Image Restoration Pre-training via Degradation Classification},
-  author={JiaKui Hu and Lujia Jin and Zhengjian Yao and Yanye Lu},
-  booktitle={The Thirteenth International Conference on Learning Representations},
-  year={2025},
-  url={https://openreview.net/forum?id=PacBhLzeGO}
-}
+In `CDD-11`, each image may contain multiple primitive degradations simultaneously. A flat 11-way label discards that structure. Our `Row C` formulation instead supervises the primitive decomposition directly:
+
+- `low` -> `[1, 0, 0, 0]`
+- `low_haze` -> `[1, 1, 0, 0]`
+- `low_haze_rain` -> `[1, 1, 1, 0]`
+
+This makes the weak supervision more aligned with the restoration problem, especially for mixed corruption settings.
+
+### Why Prompt Injection Helps
+
+`Row D` reuses the pretrained classifier from `Row C` and feeds its predicted 4D degradation vector back into the restoration network. This gives the restoration backbone an explicit semantic signal instead of forcing it to infer everything implicitly from the image alone.
+
+## Environment Setup
+
+Create the environment from the provided conda specification.
+
+Example:
+
+```bash
+conda env create -f environment.yaml
+conda activate torch_env
 ```
 
-For help or issues using this git, please submit a GitHub issue.
+If your local package versions differ, adapt accordingly. The project was run with PyTorch + CUDA on multi-GPU Linux servers.
 
-For other communications related to this git, please get in touch with `jkhu29@stu.pku.edu.cn`.
+## Running the Experiments
+
+All main stages are launched through [run_experiments.sh](./run_experiments.sh).
+
+### Row B
+
+Pretraining:
+
+```bash
+bash run_experiments.sh row_b_pretrain
+```
+
+Finetuning:
+
+```bash
+bash run_experiments.sh row_b_finetune
+```
+
+Testing:
+
+```bash
+bash run_experiments.sh test_row_b --force_yml val:save_img=false
+```
+
+### Row C
+
+Pretraining:
+
+```bash
+bash run_experiments.sh row_c_pretrain
+```
+
+Finetuning:
+
+```bash
+bash run_experiments.sh row_c_finetune
+```
+
+Testing:
+
+```bash
+bash run_experiments.sh test_row_c --force_yml val:save_img=false
+```
+
+### Row D
+
+Finetuning:
+
+```bash
+bash run_experiments.sh row_d_finetune --force_yml path:strict_load_g=false
+```
+
+Testing:
+
+```bash
+bash run_experiments.sh test_row_d --force_yml val:save_img=false
+```
+
+### Multi-GPU Usage
+
+When running multiple stages in parallel, assign each job:
+
+- a different `CUDA_VISIBLE_DEVICES`
+- a different `MASTER_PORT` for `torchrun`-based stages
+
+Example:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 MASTER_PORT=29510 bash run_experiments.sh row_b_finetune
+CUDA_VISIBLE_DEVICES=1 MASTER_PORT=29511 bash run_experiments.sh row_c_finetune
+CUDA_VISIBLE_DEVICES=2 MASTER_PORT=29512 bash run_experiments.sh row_d_finetune --force_yml path:strict_load_g=false
+```
+
+## How to Reproduce the Figures and Plots
+
+The repository includes scripts that regenerate the project visuals from experiment logs and saved outputs.
+
+Generate report figures:
+
+```bash
+python scripts/generate_report_assets.py
+```
+
+Export the report PDF:
+
+```bash
+python scripts/export_report_pdf.py
+```
+
+Useful generated artifacts include:
+
+- loss curves for pretraining and finetuning
+- PSNR gain plots
+- grouped metric visualizations
+- qualitative image cards with zoom crops
+
+## How to Reproduce Qualitative Comparisons
+
+To select high-gain examples for qualitative analysis:
+
+```bash
+python scripts/select_qualitative_examples.py
+```
+
+Outputs are stored in:
+
+- [Experiment_Results/qualitative_cards](./Experiment_Results/qualitative_cards)
+
+These cards were selected from actual saved model outputs and highlight cases where:
+
+- `Row C` significantly improves over `Row B`
+- `Row D` significantly improves over `Row C`
+- `Row D` significantly improves over `Row B`
+
+## Unseen 4-Way Generalization Experiment
+
+We also added an out-of-distribution stress test containing all four primitive degradations at once:
+
+- `low`
+- `haze`
+- `rain`
+- `snow`
+
+This split is generated synthetically because standard `CDD-11` includes combinations up to three degradations.
+
+Generate the synthetic unseen 4-way data:
+
+```bash
+python scripts/generate_unseen_fourway_dataset.py
+```
+
+Generate unseen-4-way qualitative cards:
+
+```bash
+python scripts/export_unseen_fourway_cards.py
+```
+
+Relevant assets:
+
+- [Experiment_Results/unseen_4way/fourway_generation_notes.txt](./Experiment_Results/unseen_4way/fourway_generation_notes.txt)
+- [Experiment_Results/unseen_4way/cards](./Experiment_Results/unseen_4way/cards)
+
+## Reproducibility Notes
+
+- The repository is cleaned for GitHub submission, so large checkpoints, TensorBoard logs, and raw training artifacts may be excluded.
+- The important code, configs, scripts, and final analysis assets are retained.
+- If you want the exact training workflow and stage dependencies, refer to [EXPERIMENTAL_SETUP.md](./EXPERIMENTAL_SETUP.md).
+
+## Takeaway
+
+The strongest project conclusion is not just that one more model variant wins a benchmark. It is that the *structure of the weak supervision matters*.
+
+- A primitive-aware multi-label target is more useful than a flat 11-way label on mixed degradations.
+- Prompt injection can improve PSNR further, but its benefit is more selective and less stable than the gain from better pretraining supervision.
+- These trends remain visible even under a much smaller training budget than the original paper.
+
+## Acknowledgement
+
+This project builds on the original DCPT codebase and paper:
+
+> J. Hu et al., “Degradation Classification Pre-Training for Universal Image Restoration,” ICLR 2025.
+
+We use their repository as the starting point and extend it for our project-specific weak-supervision and prompt-conditioning experiments on `CDD-11`.

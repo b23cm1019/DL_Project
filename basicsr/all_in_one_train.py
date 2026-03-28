@@ -97,9 +97,7 @@ def create_train_val_dataloader(opt, logger):
     )
 
     val_set = ConcatDataset(val_sets, [1] * len(val_sets))
-    val_dataloader_opt = (
-        opt["dataloader_val"] if hasattr(opt, "dataloader_val") else dataloader_opt
-    )
+    val_dataloader_opt = opt["dataloader_val"] if "dataloader_val" in opt else dataloader_opt
     val_loader = build_dataloader(
         val_set,
         val_dataloader_opt,

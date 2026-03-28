@@ -1,3 +1,4 @@
+import math
 from collections import OrderedDict
 from os import path as osp
 
@@ -227,6 +228,8 @@ class DCDistModel(BaseModel):
         window_size, _ = self.check_window_size(
             [self.opt["network_g"].get("window_size", h), False]
         )
+        downsample_multiple = 2 ** len(self.opt["network_g"].get("enc_blk_nums", []))
+        window_size = math.lcm(window_size, max(1, downsample_multiple))
         self.scale = self.opt.get("scale", 1)
         self.mod_pad_h, self.mod_pad_w = 0, 0
         if h % window_size != 0:

@@ -145,12 +145,15 @@ def check_resume_all_in_one(opt, resume_iter):
         resume_iter (int): Resume iteration.
     """
     if opt["path"]["resume_state"]:
-        # set pretrained model paths
-        name = "pretrain_network_dc"
-        basename = "dc"
-        if opt["path"].get("ignore_resume_networks") is None or (
-            "dc" not in opt["path"]["ignore_resume_networks"]
-        ):
+        resume_networks = {
+            "pretrain_network_g": "g",
+            "pretrain_network_dc": "dc",
+        }
+        ignore_networks = opt["path"].get("ignore_resume_networks") or []
+
+        for name, basename in resume_networks.items():
+            if basename in ignore_networks:
+                continue
             opt["path"][name] = osp.join(
                 opt["path"]["models"], f"net_{basename}_{resume_iter}.pth"
             )
