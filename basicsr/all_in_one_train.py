@@ -13,6 +13,7 @@ sys.path.append(".")
 
 import time
 import warnings
+import os
 from os import path as osp
 
 import torch
@@ -54,8 +55,13 @@ def init_tb_loggers(opt):
         init_wandb_logger(opt)
     tb_logger = None
     if opt["logger"].get("use_tb_logger") and "debug" not in opt["name"]:
+        tb_root = os.environ.get("BASICSR_TB_ROOT")
+        if tb_root:
+            log_dir = osp.join(osp.expanduser(osp.expandvars(tb_root)), opt["name"])
+        else:
+            log_dir = osp.join(opt["root_path"], "tb_logger", opt["name"])
         tb_logger = init_tb_logger(
-            log_dir=osp.join(opt["root_path"], "tb_logger", opt["name"])
+            log_dir=log_dir
         )
     return tb_logger
 
@@ -161,7 +167,7 @@ def create_val_dataloaders(opt, logger):
 def load_resume_state(opt):
     resume_state_path = None
     if opt["auto_resume"]:
-        state_path = osp.join("experiments", opt["name"], "training_states")
+        state_path = opt["path"]["training_states"]
         if osp.isdir(state_path):
             states = list(
                 scandir(state_path, suffix="state", recursive=False, full_path=False)
@@ -203,12 +209,17 @@ def train_pipeline(root_path):
     # mkdir for experiments and logger
     if resume_state is None:
         make_exp_dirs(opt)
+        tb_root = os.environ.get("BASICSR_TB_ROOT")
+        if tb_root:
+            tb_dir = osp.join(osp.expanduser(osp.expandvars(tb_root)), opt["name"])
+        else:
+            tb_dir = osp.join(opt["root_path"], "tb_logger", opt["name"])
         if (
             opt["logger"].get("use_tb_logger")
             and "debug" not in opt["name"]
             and opt["rank"] == 0
         ):
-            mkdir_and_rename(osp.join(opt["root_path"], "tb_logger", opt["name"]))
+            mkdir_and_rename(tb_dir)
 
     # copy the yml file to the experiment root
     copy_opt_file(args.opt, opt["path"]["experiments_root"])
