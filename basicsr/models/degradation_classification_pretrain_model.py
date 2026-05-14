@@ -1,5 +1,6 @@
 import math
 from collections import OrderedDict
+from contextlib import nullcontext
 
 import torch
 from timm.utils.metrics import accuracy
@@ -136,21 +137,28 @@ class DCPTModel(BaseModel):
 
         ### Step 1: pixel loss — forward on GT then backward immediately
         # This frees GT activation memory before the classify forward pass.
+        # Wrap in no_sync() so DDP defers gradient reduction to Step 2,
+        # where all parameters participate in the backward pass.
         self.net_g.train()
         self.net_dc.eval()
         self.optimizer_g.zero_grad()
         self.optimizer_dc.zero_grad()
 
-        pix_output = self.net_g(self.gt, hook=False)
-        self.hook_outputs = list()
+        g_ctx = self.net_g.no_sync if hasattr(self.net_g, "no_sync") else nullcontext
+        dc_ctx = self.net_dc.no_sync if hasattr(self.net_dc, "no_sync") else nullcontext
 
-        if self.cri_pixel:
-            l_pix = self.cri_pixel(pix_output, self.gt)
-            l_pix.backward()  # free GT activations now; grads accumulate on net_g
-            loss_dict["l_pix"] = l_pix.detach()
-        del pix_output
+        with g_ctx(), dc_ctx():
+            pix_output = self.net_g(self.gt, hook=False)
+            self.hook_outputs = list()
+
+            if self.cri_pixel:
+                l_pix = self.cri_pixel(pix_output, self.gt)
+                l_pix.backward()  # free GT activations now; grads accumulate on net_g
+                loss_dict["l_pix"] = l_pix.detach()
+            del pix_output
 
         ### Step 2: classify loss — forward on LQ then backward
+        # DDP allreduce triggers here for all accumulated gradients.
         self.net_dc.train()
 
         self.net_g(self.lq, hook=True)
