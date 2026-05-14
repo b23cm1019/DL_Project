@@ -8,6 +8,13 @@ PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-${SCRATCH_ROOT}/projects/DL_Pr
 module purge
 module load python/3.10.pytorch
 
+VENV_ROOT="${VENV_ROOT:-${SCRATCH_ROOT}/envs/dl_project}"
+if [[ -f "${VENV_ROOT}/bin/activate" ]]; then
+  # Prefer a project-specific environment when available so package versions
+  # stay consistent across sanity, train, resume, and test jobs.
+  source "${VENV_ROOT}/bin/activate"
+fi
+
 export DCPT_DATA_ROOT="${DCPT_DATA_ROOT:-${SCRATCH_ROOT}/datasets/CDD11}"
 export BASICSR_EXPERIMENTS_ROOT="${BASICSR_EXPERIMENTS_ROOT:-${SCRATCH_ROOT}/outputs}"
 export BASICSR_MODELS_ROOT="${BASICSR_MODELS_ROOT:-${SCRATCH_ROOT}/checkpoints}"
