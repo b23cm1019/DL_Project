@@ -10,6 +10,7 @@
 
 set -euo pipefail
 
-source "$(dirname "$0")/_cluster_env.sh"
+PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-/scratch/b23cm1019/projects/DL_Project}}"
+source "${PROJECT_ROOT}/slurm/_cluster_env.sh"
 
 bash run_experiments.sh sanity_row_c

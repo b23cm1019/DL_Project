@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRATCH_ROOT="${SCRATCH_ROOT:-/scratch/b23cm1019}"
-PROJECT_ROOT="${PROJECT_ROOT:-${SCRATCH_ROOT}/projects/DL_Project}"
+PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-${SCRATCH_ROOT}/projects/DL_Project}}"
 
 module purge
 module load python/3.10.pytorch
