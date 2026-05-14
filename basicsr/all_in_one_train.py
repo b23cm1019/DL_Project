@@ -402,6 +402,8 @@ def train_pipeline(root_path):
 
             # save models and training states
             if current_iter % opt["logger"]["save_checkpoint_freq"] == 0:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 logger.info("Saving models and training states.")
                 model.save(epoch, current_iter)
 
@@ -409,6 +411,8 @@ def train_pipeline(root_path):
             if opt.get("val") is not None and (
                 current_iter % opt["val"]["val_freq"] == 0
             ):
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
                 if classify:
                     model.validation(val_loader, current_iter, tb_logger, False)
                 else:
@@ -435,6 +439,8 @@ def train_pipeline(root_path):
     consumed_time = str(datetime.timedelta(seconds=int(time.time() - start_time)))
     logger.info(f"End of training. Time consumed: {consumed_time}")
     logger.info("Save the latest model.")
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     model.save(epoch=-1, current_iter=-1)  # -1 stands for the latest
 
     if tb_logger:

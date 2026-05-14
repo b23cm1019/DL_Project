@@ -24,6 +24,7 @@ export BASICSR_VIS_ROOT="${BASICSR_VIS_ROOT:-${SCRATCH_ROOT}/outputs/visualizati
 export BASICSR_RESULTS_ROOT="${BASICSR_RESULTS_ROOT:-${SCRATCH_ROOT}/outputs/test_results}"
 export BASICSR_TB_ROOT="${BASICSR_TB_ROOT:-${SCRATCH_ROOT}/logs/tb_logger}"
 export MASTER_PORT="${MASTER_PORT:-29500}"
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-max_split_size_mb:64,expandable_segments:True}"
 
 mkdir -p "${SCRATCH_ROOT}/logs/slurm"
 mkdir -p "${BASICSR_EXPERIMENTS_ROOT}"

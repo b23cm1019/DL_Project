@@ -82,11 +82,11 @@ EXTRA_ARGS=("$@")
 case "$STAGE" in
   sanity_row_c)
     echo "Running a short Row C sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=50 val:val_freq=50 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=1 dataloader_val:num_worker_per_gpu=1 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 "${EXTRA_ARGS[@]}"
     ;;
   sanity_row_d)
     echo "Running a short Row D sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=50 val:val_freq=50 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=1 dataloader_val:num_worker_per_gpu=1 path:strict_load_g=false "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 path:strict_load_g=false "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain)
     echo "Starting Row C pretraining on CDD-11 (multi-label BCE, port ${MASTER_PORT})"

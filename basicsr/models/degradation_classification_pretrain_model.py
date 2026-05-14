@@ -134,34 +134,33 @@ class DCPTModel(BaseModel):
     def optimize_parameters(self, current_iter):
         loss_dict = OrderedDict()
 
-        ### train to generate the clean image
+        ### Step 1: pixel loss — forward on GT then backward immediately
+        # This frees GT activation memory before the classify forward pass.
         self.net_g.train()
         self.net_dc.eval()
         self.optimizer_g.zero_grad()
+        self.optimizer_dc.zero_grad()
+
         pix_output = self.net_g(self.gt, hook=False)
         self.hook_outputs = list()
 
-        l_total = 0
-        # pixel loss
         if self.cri_pixel:
             l_pix = self.cri_pixel(pix_output, self.gt)
-            l_total += l_pix
-            loss_dict["l_pix"] = l_pix
+            l_pix.backward()  # free GT activations now; grads accumulate on net_g
+            loss_dict["l_pix"] = l_pix.detach()
+        del pix_output
 
-        ### train to classify the degradation
+        ### Step 2: classify loss — forward on LQ then backward
         self.net_dc.train()
-        self.optimizer_dc.zero_grad()
 
         self.net_g(self.lq, hook=True)
         cls_output = self.net_dc(self.lq, self.hook_outputs[::-1])
 
-        # classify loss
         if self.cri_classify:
             l_classify = self.cri_classify(cls_output, self.dataset_idx)
-            l_total += l_classify
-            loss_dict["l_classify"] = l_classify
+            l_classify.backward()  # grads accumulate additively on net_g
+            loss_dict["l_classify"] = l_classify.detach()
 
-        l_total.backward()
         self.optimizer_g.step()
         self.optimizer_dc.step()
 
