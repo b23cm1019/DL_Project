@@ -137,8 +137,10 @@ def _postprocess_yml_value(value):
     # number
     if value.isdigit():
         return int(value)
-    elif value.replace(".", "", 1).isdigit() and value.count(".") < 2:
+    try:
         return float(value)
+    except ValueError:
+        pass
     # list
     if value.startswith("["):
         return eval(value)
