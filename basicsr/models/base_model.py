@@ -272,11 +272,12 @@ class BaseModel:
         for net_, param_key_ in zip(net, param_key):
             net_ = self.get_bare_model(net_)
             state_dict = net_.state_dict()
+            net_save_dict = {}
             for key, param in state_dict.items():
                 if key.startswith("module."):  # remove unnecessary 'module.'
                     key = key[7:]
-                state_dict[key] = param.cpu()
-            save_dict[param_key_] = state_dict
+                net_save_dict[key] = param.cpu()
+            save_dict[param_key_] = net_save_dict
 
         # avoid occasional writing errors
         retry = 3
@@ -385,7 +386,16 @@ class BaseModel:
                 "schedulers": [],
             }
             for o in self.optimizers:
-                state["optimizers"].append(o.state_dict())
+                opt_state = o.state_dict()
+                opt_state_cpu = {"state": {}, "param_groups": opt_state["param_groups"]}
+                for param_id, state_val in opt_state["state"].items():
+                    opt_state_cpu["state"][param_id] = {}
+                    for k, v in state_val.items():
+                        if torch.is_tensor(v):
+                            opt_state_cpu["state"][param_id][k] = v.cpu()
+                        else:
+                            opt_state_cpu["state"][param_id][k] = v
+                state["optimizers"].append(opt_state_cpu)
             for s in self.schedulers:
                 state["schedulers"].append(s.state_dict())
             save_filename = f"{current_iter}.state"
