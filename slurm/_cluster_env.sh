@@ -7,6 +7,8 @@ PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-${SCRATCH_ROOT}/projects/DL_Pr
 
 export PYTHONNOUSERSITE="${PYTHONNOUSERSITE:-1}"
 unset PYTHONPATH
+export BASICSR_JIT="${BASICSR_JIT:-True}"
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.6}"
 
 module purge
 module load python/3.10.pytorch
