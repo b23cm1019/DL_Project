@@ -13,4 +13,4 @@ set -euo pipefail
 PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-/scratch/b23cm1019/projects/DL_Project}}"
 source "${PROJECT_ROOT}/slurm/_cluster_env.sh"
 
-bash run_experiments.sh row_c_pretrain_resume
+bash run_experiments.sh row_c_pretrain_resume --force_yml dataloader:batch_size_per_gpu=4 train:ema_decay=0 train:optim_g:lr=2.5e-05 train:optim_dc:lr=5e-05

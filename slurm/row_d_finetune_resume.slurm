@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=30:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=/scratch/b23cm1019/logs/slurm/%x_%j.out
 #SBATCH --error=/scratch/b23cm1019/logs/slurm/%x_%j.err
 
@@ -13,4 +13,4 @@ set -euo pipefail
 PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-/scratch/b23cm1019/projects/DL_Project}}"
 source "${PROJECT_ROOT}/slurm/_cluster_env.sh"
 
-bash run_experiments.sh row_d_finetune_resume
+bash run_experiments.sh row_d_finetune_resume --force_yml dataloader:batch_size_per_gpu=4 train:ema_decay=0 train:optim_g:lr=2.5e-05

@@ -90,27 +90,27 @@ case "$STAGE" in
     ;;
   row_c_pretrain)
     echo "Starting Row C pretraining on CDD-11 (multi-label BCE, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml val:val_freq=25001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml val:val_freq=10000 logger:save_checkpoint_freq=5000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain_resume)
     echo "Resuming Row C pretraining from the latest saved state (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=10000 logger:save_checkpoint_freq=5000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_finetune)
     echo "Starting Row C finetuning on CDD-11 (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=100001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_finetune_resume)
     echo "Resuming Row C finetuning on CDD-11 (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=100001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune)
     echo "Starting Row D finetuning on CDD-11 with prompt injection (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml path:strict_load_g=false val:val_freq=100001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml path:strict_load_g=false val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune_resume)
     echo "Resuming Row D finetuning with prompt injection (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml path:strict_load_g=false classify=false resume_remove_dc=true val:val_freq=100001 logger:save_checkpoint_freq=2500 "${EXTRA_ARGS[@]}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml path:strict_load_g=false classify=false resume_remove_dc=true val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
     ;;
   test_row_c)
     echo "Running CDD-11 evaluation for Row C"
