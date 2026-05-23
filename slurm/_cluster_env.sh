@@ -2,8 +2,11 @@
 
 set -euo pipefail
 
-SCRATCH_ROOT="${SCRATCH_ROOT:-/scratch/b23cm1019}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-/scratch/p24cs0203/krish}"
 PROJECT_ROOT="${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-${SCRATCH_ROOT}/projects/DL_Project}}"
+
+export PYTHONNOUSERSITE="${PYTHONNOUSERSITE:-1}"
+unset PYTHONPATH
 
 module purge
 module load python/3.10.pytorch
@@ -37,6 +40,10 @@ mkdir -p "${BASICSR_TB_ROOT}"
 
 cd "${PROJECT_ROOT}"
 
-python3 --version
+python --version
 hostname
-nvidia-smi
+if command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi
+else
+  echo "nvidia-smi not available on this node"
+fi
