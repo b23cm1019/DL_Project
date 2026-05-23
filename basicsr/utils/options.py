@@ -52,55 +52,6 @@ def yaml_load(f):
         return yaml.load(f, Loader=ordered_yaml()[0])
 
 
-def _remap_legacy_path(path):
-    normalized = path.replace("\\", "/")
-    data_root = os.environ.get("DCPT_DATA_ROOT")
-    models_root = os.environ.get("BASICSR_MODELS_ROOT")
-    training_states_root = os.environ.get("BASICSR_TRAINING_STATES_ROOT")
-
-    if data_root:
-        train_prefix = "/data/datasets/CDD-11_train/CDD-11_train"
-        test_prefix = "/data/datasets/CDD-11_test"
-        if normalized.startswith(train_prefix):
-            suffix = normalized[len(train_prefix) :].strip("/")
-            parts = [data_root, "train", "CDD-11_train"]
-            if suffix:
-                parts.extend(suffix.split("/"))
-            return osp.join(*parts)
-        if normalized.startswith(test_prefix):
-            suffix = normalized[len(test_prefix) :].strip("/")
-            parts = [data_root, "test"]
-            if suffix:
-                parts.extend(suffix.split("/"))
-            return osp.join(*parts)
-
-    if models_root and normalized.startswith("experiments/") and "/models/" in normalized:
-        relative = normalized[len("experiments/") :]
-        exp_name, _, file_name = relative.partition("/models/")
-        if exp_name and file_name:
-            return osp.join(models_root, exp_name, file_name)
-
-    if (
-        training_states_root
-        and normalized.startswith("experiments/")
-        and "/training_states/" in normalized
-    ):
-        relative = normalized[len("experiments/") :]
-        exp_name, _, file_name = relative.partition("/training_states/")
-        if exp_name and file_name:
-            return osp.join(training_states_root, exp_name, file_name)
-
-    return path
-
-
-def _expand_path(path):
-    if path is None:
-        return None
-    path = osp.expandvars(path)
-    path = _remap_legacy_path(path)
-    return osp.expanduser(path)
-
-
 def dict2str(opt, indent_level=1):
     """dict to string for printing options.
 
@@ -137,10 +88,8 @@ def _postprocess_yml_value(value):
     # number
     if value.isdigit():
         return int(value)
-    try:
+    elif value.replace(".", "", 1).isdigit() and value.count(".") < 2:
         return float(value)
-    except ValueError:
-        pass
     # list
     if value.startswith("["):
         return eval(value)
@@ -224,51 +173,22 @@ def parse_options(root_path, is_train=True):
         if "scale" in opt:
             dataset["scale"] = opt["scale"]
         if dataset.get("dataroot_gt") is not None:
-            dataset["dataroot_gt"] = _expand_path(dataset["dataroot_gt"])
+            dataset["dataroot_gt"] = osp.expanduser(dataset["dataroot_gt"])
         if dataset.get("dataroot_lq") is not None:
-            dataset["dataroot_lq"] = _expand_path(dataset["dataroot_lq"])
+            dataset["dataroot_lq"] = osp.expanduser(dataset["dataroot_lq"])
 
     # paths
     for key, val in opt["path"].items():
-        if isinstance(val, str):
-            opt["path"][key] = _expand_path(val)
+        if (val is not None) and ("resume_state" in key or "pretrain_network" in key):
+            opt["path"][key] = osp.expanduser(val)
 
     if is_train:
-        experiments_root_base = os.environ.get("BASICSR_EXPERIMENTS_ROOT")
-        models_root_base = os.environ.get("BASICSR_MODELS_ROOT")
-        training_states_root_base = os.environ.get("BASICSR_TRAINING_STATES_ROOT")
-        log_root_base = os.environ.get("BASICSR_LOG_ROOT")
-        visualization_root_base = os.environ.get("BASICSR_VIS_ROOT")
-
-        if experiments_root_base:
-            experiments_root = osp.join(
-                _expand_path(experiments_root_base), opt["name"]
-            )
-        else:
-            experiments_root = osp.join(root_path, "experiments", opt["name"])
+        experiments_root = osp.join(root_path, "experiments", opt["name"])
         opt["path"]["experiments_root"] = experiments_root
-        if models_root_base:
-            opt["path"]["models"] = osp.join(_expand_path(models_root_base), opt["name"])
-        else:
-            opt["path"]["models"] = osp.join(experiments_root, "models")
-        if training_states_root_base:
-            opt["path"]["training_states"] = osp.join(
-                _expand_path(training_states_root_base), opt["name"]
-            )
-        else:
-            opt["path"]["training_states"] = osp.join(
-                experiments_root, "training_states"
-            )
-        if log_root_base:
-            opt["path"]["log"] = osp.join(_expand_path(log_root_base), opt["name"])
-        else:
-            opt["path"]["log"] = experiments_root
-        if visualization_root_base:
-            opt["path"]["visualization"] = osp.join(
-                _expand_path(visualization_root_base), opt["name"]
-            )
-        else:
-            opt["path"]["visualization"] = osp.join(experiments_root, "visualization")
+        opt["path"]["models"] = osp.join(experiments_root, "models")
+        opt["path"]["training_states"] = osp.join(experiments_root, "training_states")
+        opt["path"]["log"] = experiments_root
+        opt["path"]["visualization"] = osp.join(experiments_root, "visualization")
 
         # change some options for debug mode
         if "debug" in opt["name"]:
@@ -277,25 +197,10 @@ def parse_options(root_path, is_train=True):
             opt["logger"]["print_freq"] = 1
             opt["logger"]["save_checkpoint_freq"] = 8
     else:  # test
-        results_root_base = os.environ.get("BASICSR_RESULTS_ROOT")
-        log_root_base = os.environ.get("BASICSR_LOG_ROOT")
-        visualization_root_base = os.environ.get("BASICSR_VIS_ROOT")
-
-        if results_root_base:
-            results_root = osp.join(_expand_path(results_root_base), opt["name"])
-        else:
-            results_root = osp.join(root_path, "results", opt["name"])
+        results_root = osp.join(root_path, "results", opt["name"])
         opt["path"]["results_root"] = results_root
-        if log_root_base:
-            opt["path"]["log"] = osp.join(_expand_path(log_root_base), opt["name"])
-        else:
-            opt["path"]["log"] = results_root
-        if visualization_root_base:
-            opt["path"]["visualization"] = osp.join(
-                _expand_path(visualization_root_base), opt["name"]
-            )
-        else:
-            opt["path"]["visualization"] = osp.join(results_root, "visualization")
+        opt["path"]["log"] = results_root
+        opt["path"]["visualization"] = osp.join(results_root, "visualization")
 
     return opt, args
 

@@ -1,21 +1,37 @@
 #!/bin/bash
-# DCPT CDD-11 experiment runner for Row C and Row D.
+# DCPT experiment runner — Config B (cn07 A6000, 100k pretrain / 500k finetune)
+# GPU pinning: only A6000 cards (0,3,4,5) — avoids RTX PRO 6000 Blackwell GPUs (1,2)
+# which have CUDA 12.1 and cause a PyTorch/torchvision CUDA version mismatch.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
-
+# ── GPU selection ──────────────────────────────────────────────────────────────
+# On cn07 the node has 6 GPUs:
+#   0,3,4,5 → NVIDIA RTX A6000 (49 GB, CUDA 11.8-compatible) ← USE THESE
+#   1,2     → NVIDIA RTX PRO 6000 Blackwell (98 GB, CUDA 12.1) ← AVOID
+# Default to GPU 0; override with: CUDA_VISIBLE_DEVICES=3 ./run_experiments.sh ...
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+
+# Validate that the requested GPU is one of the safe A6000 cards
+_validate_gpu() {
+  local gpu="${CUDA_VISIBLE_DEVICES}"
+  case "$gpu" in
+    0|3|4|5) ;;   # A6000 — OK
+    1|2)
+      echo "[ERROR] GPU ${gpu} is an RTX PRO 6000 Blackwell (CUDA 12.1) and is"
+      echo "        incompatible with this PyTorch environment (CUDA 11.8)."
+      echo "        Use CUDA_VISIBLE_DEVICES=0, 3, 4, or 5 (RTX A6000 cards)."
+      exit 1
+      ;;
+    *)
+      echo "[WARN] CUDA_VISIBLE_DEVICES='${gpu}' is not a recognised single GPU ID."
+      echo "       Safe single-GPU IDs on cn07: 0, 3, 4, 5"
+      ;;
+  esac
+}
+_validate_gpu
+
 export MASTER_PORT="${MASTER_PORT:-29500}"
-export DCPT_DATA_ROOT="${DCPT_DATA_ROOT:-${SCRIPT_DIR}/datasets/CDD11}"
-export BASICSR_EXPERIMENTS_ROOT="${BASICSR_EXPERIMENTS_ROOT:-${SCRIPT_DIR}/outputs}"
-export BASICSR_MODELS_ROOT="${BASICSR_MODELS_ROOT:-${SCRIPT_DIR}/checkpoints}"
-export BASICSR_TRAINING_STATES_ROOT="${BASICSR_TRAINING_STATES_ROOT:-${SCRIPT_DIR}/training_states}"
-export BASICSR_LOG_ROOT="${BASICSR_LOG_ROOT:-${SCRIPT_DIR}/logs}"
-export BASICSR_VIS_ROOT="${BASICSR_VIS_ROOT:-${SCRIPT_DIR}/visualizations}"
-export BASICSR_RESULTS_ROOT="${BASICSR_RESULTS_ROOT:-${SCRIPT_DIR}/results}"
-export BASICSR_TB_ROOT="${BASICSR_TB_ROOT:-${SCRIPT_DIR}/tb_logger}"
 
 LOG_FILTER='Starting |Start training|Resuming training|Saving models and training states|Validation|Testing |End of training|Save the latest model|iter:|Traceback|Error|Exception|failed|Killed'
 
@@ -25,31 +41,35 @@ Usage:
   ./run_experiments.sh <stage> [extra_args...]
 
 Stages:
-  sanity_row_c
-  sanity_row_d
+  row_b_pretrain
+  row_b_pretrain_resume
+  row_b_finetune
   row_c_pretrain
   row_c_pretrain_resume
   row_c_finetune
-  row_c_finetune_resume
   row_d_finetune
   row_d_finetune_resume
+  test_row_b
   test_row_c
   test_row_d
 
 Examples:
-  ./run_experiments.sh sanity_row_c
-  ./run_experiments.sh row_c_pretrain
-  ./run_experiments.sh row_c_finetune
-  ./run_experiments.sh row_c_pretrain_resume
-  ./run_experiments.sh row_d_finetune
-  ./run_experiments.sh test_row_c
+  ./run_experiments.sh row_b_pretrain
+  CUDA_VISIBLE_DEVICES=3 ./run_experiments.sh row_c_pretrain
+  ./run_experiments.sh row_b_pretrain --auto_resume
 
-Notes:
-  - Row D depends on the Row C pretraining checkpoint and classifier.
-  - Full logs, checkpoints, and outputs are routed by BASICSR_* env vars.
-  - All long training stages save checkpoints every 2500 iters and skip in-training validation to reduce walltime overhead.
-  - If you run multiple stages at once, give each one a different MASTER_PORT.
-  - Any extra args are forwarded to the underlying Python entrypoint.
+GPU note (cn07):
+  Safe GPUs  : 0, 3, 4, 5  (NVIDIA RTX A6000, 49 GB, CUDA 11.8-compatible)
+  Unsafe GPUs: 1, 2         (NVIDIA RTX PRO 6000 Blackwell, CUDA 12.1 — causes
+                              torchvision CUDA version mismatch)
+  Default    : GPU 0
+
+Scale targets (per DCPT Scaling Guide):
+  Pre-training  : 100,000 iterations  (matches paper exactly)
+  Fine-tuning   : 500,000 iterations  (67% of paper, ~90-95% PSNR)
+  Batch size    : 32 per GPU           (matches paper exactly on A6000 48 GB)
+  LR encoder    : 3e-4
+  LR decoder    : 1e-4
 EOF
 }
 
@@ -80,44 +100,48 @@ shift
 EXTRA_ARGS=("$@")
 
 case "$STAGE" in
-  sanity_row_c)
-    echo "Running a short Row C sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 "${EXTRA_ARGS[@]}"
+  row_b_pretrain)
+    echo "Starting Row B Pretraining (11-class single-label FocalLoss, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
-  sanity_row_d)
-    echo "Running a short Row D sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 path:strict_load_g=false "${EXTRA_ARGS[@]}"
+  row_b_pretrain_resume)
+    echo "Resuming Row B Pretraining from latest state (port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
+    ;;
+  row_b_finetune)
+    echo "Starting Row B Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_baseline.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain)
-    echo "Starting Row C pretraining on CDD-11 (multi-label BCE, port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --force_yml val:val_freq=10000 logger:save_checkpoint_freq=5000 "${EXTRA_ARGS[@]}"
+    echo "Starting Row C Pretraining (4-primitive multi-hot BCE, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain_resume)
-    echo "Resuming Row C pretraining from the latest saved state (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=10000 logger:save_checkpoint_freq=5000 "${EXTRA_ARGS[@]}"
+    echo "Resuming Row C Pretraining from latest state (port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_finetune)
-    echo "Starting Row C finetuning on CDD-11 (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
-    ;;
-  row_c_finetune_resume)
-    echo "Resuming Row C finetuning on CDD-11 (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
+    echo "Starting Row C Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune)
-    echo "Starting Row D finetuning on CDD-11 with prompt injection (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml path:strict_load_g=false val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
+    echo "Starting Row D Finetuning with Prompt Injection (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune_resume)
-    echo "Resuming Row D finetuning with prompt injection (port ${MASTER_PORT})"
-    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml path:strict_load_g=false classify=false resume_remove_dc=true val:val_freq=50000 logger:save_checkpoint_freq=10000 "${EXTRA_ARGS[@]}"
+    echo "Resuming Row D Finetuning with Prompt Injection (non-strict generator load, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml classify=false resume_remove_dc=true path:strict_load_g=false val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
+    ;;
+  test_row_b)
+    echo "Running Evaluation for Row B"
+    run_stage python basicsr/test.py -opt options/cdd_experiments/test_baseline.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_c)
-    echo "Running CDD-11 evaluation for Row C"
+    echo "Running Evaluation for Row C"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_multilabel.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_d)
-    echo "Running CDD-11 evaluation for Row D"
+    echo "Running Evaluation for Row D"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_prompt.yml "${EXTRA_ARGS[@]}"
     ;;
   *)
