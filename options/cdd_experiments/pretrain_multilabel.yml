@@ -229,7 +229,7 @@ dataloader:
   phase: train
   use_shuffle: true
   num_worker_per_gpu: 2
-  batch_size_per_gpu: 8
+  batch_size_per_gpu: 32
   dataset_enlarge_ratio: 1
   pin_memory: true
 dataloader_val:
@@ -271,7 +271,7 @@ train:
   ema_decay: 0.999
   optim_g:
     type: AdamW
-    lr: 5.0e-05
+    lr: 3.0e-04
     weight_decay: 0
     betas:
     - 0.9

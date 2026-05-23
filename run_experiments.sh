@@ -47,7 +47,8 @@ Examples:
 Notes:
   - Row D depends on the Row C pretraining checkpoint and classifier.
   - Full logs, checkpoints, and outputs are routed by BASICSR_* env vars.
-  - All long training stages save checkpoints every 2500 iters and skip in-training validation to reduce walltime overhead.
+  - Row C pretraining saves every 5k iters; Row C/Row D finetuning save every 10k iters.
+  - Row C/Row D finetuning validate every 50k iters so progress remains visible in logs.
   - If you run multiple stages at once, give each one a different MASTER_PORT.
   - Any extra args are forwarded to the underlying Python entrypoint.
 EOF
