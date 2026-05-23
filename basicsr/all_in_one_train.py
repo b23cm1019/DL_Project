@@ -199,9 +199,11 @@ def train_pipeline(root_path):
     opt, args = parse_options(root_path, is_train=True)
     opt["root_path"] = root_path
 
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.allow_tf32 = True
-    torch.backends.cuda.matmul.allow_tf32 = True
+    disable_cudnn = os.environ.get("DCPT_DISABLE_CUDNN", "0") == "1"
+    torch.backends.cudnn.enabled = not disable_cudnn
+    torch.backends.cudnn.benchmark = not disable_cudnn
+    torch.backends.cudnn.allow_tf32 = not disable_cudnn
+    torch.backends.cuda.matmul.allow_tf32 = not disable_cudnn
     # torch.backends.cudnn.deterministic = True
 
     # load resume states if necessary

@@ -6,7 +6,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export MASTER_PORT="${MASTER_PORT:-29500}"
 export DCPT_DATA_ROOT="${DCPT_DATA_ROOT:-${SCRIPT_DIR}/datasets/CDD11}"
 export BASICSR_EXPERIMENTS_ROOT="${BASICSR_EXPERIMENTS_ROOT:-${SCRIPT_DIR}/outputs}"
@@ -71,6 +70,10 @@ run_stage() {
   fi
 }
 
+run_stage_full() {
+  "$@"
+}
+
 if [[ $# -lt 1 ]]; then
   usage
   exit 1
@@ -83,11 +86,11 @@ EXTRA_ARGS=("$@")
 case "$STAGE" in
   sanity_row_c)
     echo "Running a short Row C sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage python basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher none --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 "${EXTRA_ARGS[@]}"
+    run_stage_full python basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher none --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 "${EXTRA_ARGS[@]}"
     ;;
   sanity_row_d)
     echo "Running a short Row D sanity check on CDD-11 (100 iters, batch size 1, port ${MASTER_PORT})"
-    run_stage python basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher none --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 path:strict_load_g=false "${EXTRA_ARGS[@]}"
+    run_stage_full python basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher none --force_yml train:total_iter=100 logger:save_checkpoint_freq=1000 val:val_freq=101 dataloader:batch_size_per_gpu=1 dataloader:num_worker_per_gpu=0 dataloader_val:num_worker_per_gpu=0 train:ema_decay=0 path:strict_load_g=false "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain)
     echo "Starting Row C pretraining on CDD-11 (multi-label BCE, port ${MASTER_PORT})"
