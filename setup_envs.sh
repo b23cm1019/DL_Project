@@ -213,9 +213,10 @@ PYEOF
     # -------------------------------------------------------------------------
     # Install project editable
     # -------------------------------------------------------------------------
-    log "Installing project editable..."
+    log "Adding project root via .pth ..."
 
-    pip install -e "${PROJECT}/"
+    echo "${PROJECT}" > \
+    "${VENV}/lib/python3.10/site-packages/dl_project.pth"
 
     # -------------------------------------------------------------------------
     # Smoke tests
