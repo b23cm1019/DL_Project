@@ -79,6 +79,27 @@ preflight_import() {
   python -c "import importlib; importlib.import_module('${module}'); print('[INFO] Preflight import OK: ${module}')"
 }
 
+preflight_torchvision_cuda() {
+  echo "[INFO] Preflight torch/torchvision CUDA check"
+  python - <<'PY'
+import sys
+
+import torch
+import torchvision
+
+print("[INFO] Preflight PyTorch     :", torch.__version__, " CUDA:", torch.version.cuda)
+print("[INFO] Preflight torchvision :", torchvision.__version__)
+try:
+    from torchvision.extension import _check_cuda_version
+
+    _check_cuda_version()
+except Exception as exc:
+    print(f"[ERROR] torch/torchvision CUDA compatibility check failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+print("[INFO] Preflight torch/torchvision CUDA OK")
+PY
+}
+
 run_stage() {
   set +e
   "$@" 2>&1 | stdbuf -oL -eL grep -E --line-buffered "$LOG_FILTER"
@@ -108,56 +129,67 @@ EXTRA_ARGS=("$@")
 case "$STAGE" in
   row_b_pretrain)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Starting Row B Pretraining (11-class single-label FocalLoss, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
   row_b_pretrain_resume)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Resuming Row B Pretraining from latest state (port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
     ;;
   row_b_finetune)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Starting Row B Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_baseline.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Starting Row C Pretraining (4-primitive multi-hot BCE, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain_resume)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Resuming Row C Pretraining from latest state (port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_finetune)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Starting Row C Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Starting Row D Finetuning with Prompt Injection (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune_resume)
     preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
     echo "Resuming Row D Finetuning with Prompt Injection (non-strict generator load, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml classify=false resume_remove_dc=true path:strict_load_g=false val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   test_row_b)
     preflight_import basicsr.test
+    preflight_torchvision_cuda
     echo "Running Evaluation for Row B"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_baseline.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_c)
     preflight_import basicsr.test
+    preflight_torchvision_cuda
     echo "Running Evaluation for Row C"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_multilabel.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_d)
     preflight_import basicsr.test
+    preflight_torchvision_cuda
     echo "Running Evaluation for Row D"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_prompt.yml "${EXTRA_ARGS[@]}"
     ;;
