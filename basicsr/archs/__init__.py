@@ -15,17 +15,36 @@ arch_filenames = [
     for v in scandir(arch_folder)
     if v.endswith("_arch.py")
 ]
-# import all the arch modules
-_arch_modules = [
-    importlib.import_module(f"basicsr.archs.{file_name}")
-    for file_name in arch_filenames
-]
+_arch_import_errors = {}
+
+for file_name in arch_filenames:
+    module_name = f"basicsr.archs.{file_name}"
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        _arch_import_errors[module_name] = exc
+
+
+def _format_import_errors():
+    if not _arch_import_errors:
+        return ""
+    lines = ["Deferred arch import errors:"]
+    for module_name, exc in sorted(_arch_import_errors.items()):
+        lines.append(f"  - {module_name}: {exc.__class__.__name__}: {exc}")
+    return "\n".join(lines)
 
 
 def build_network(opt):
     opt = deepcopy(opt)
     network_type = opt.pop("type")
-    net = ARCH_REGISTRY.get(network_type)(**opt)
+    try:
+        network_cls = ARCH_REGISTRY.get(network_type)
+    except KeyError as exc:
+        import_errors = _format_import_errors()
+        if import_errors:
+            raise KeyError(f"{exc}\n{import_errors}") from exc
+        raise
+    net = network_cls(**opt)
     logger = get_root_logger()
     logger.info(f"Network [{net.__class__.__name__}] is created.")
     return net

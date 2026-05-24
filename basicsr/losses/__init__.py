@@ -18,11 +18,23 @@ loss_filenames = [
     for v in scandir(loss_folder)
     if v.endswith("_loss.py")
 ]
-# import all the loss modules
-_model_modules = [
-    importlib.import_module(f"basicsr.losses.{file_name}")
-    for file_name in loss_filenames
-]
+_loss_import_errors = {}
+
+for file_name in loss_filenames:
+    module_name = f"basicsr.losses.{file_name}"
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        _loss_import_errors[module_name] = exc
+
+
+def _format_import_errors():
+    if not _loss_import_errors:
+        return ""
+    lines = ["Deferred loss import errors:"]
+    for module_name, exc in sorted(_loss_import_errors.items()):
+        lines.append(f"  - {module_name}: {exc.__class__.__name__}: {exc}")
+    return "\n".join(lines)
 
 
 def build_loss(opt):
@@ -34,7 +46,14 @@ def build_loss(opt):
     """
     opt = deepcopy(opt)
     loss_type = opt.pop("type")
-    loss = LOSS_REGISTRY.get(loss_type)(**opt)
+    try:
+        loss_cls = LOSS_REGISTRY.get(loss_type)
+    except KeyError as exc:
+        import_errors = _format_import_errors()
+        if import_errors:
+            raise KeyError(f"{exc}\n{import_errors}") from exc
+        raise
+    loss = loss_cls(**opt)
     logger = get_root_logger()
     logger.info(f"Loss [{loss.__class__.__name__}] is created.")
     return loss

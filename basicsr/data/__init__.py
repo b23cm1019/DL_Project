@@ -23,11 +23,23 @@ dataset_filenames = [
     for v in scandir(data_folder)
     if v.endswith("_dataset.py")
 ]
-# import all the dataset modules
-_dataset_modules = [
-    importlib.import_module(f"basicsr.data.{file_name}")
-    for file_name in dataset_filenames
-]
+_dataset_import_errors = {}
+
+for file_name in dataset_filenames:
+    module_name = f"basicsr.data.{file_name}"
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:
+        _dataset_import_errors[module_name] = exc
+
+
+def _format_import_errors():
+    if not _dataset_import_errors:
+        return ""
+    lines = ["Deferred dataset import errors:"]
+    for module_name, exc in sorted(_dataset_import_errors.items()):
+        lines.append(f"  - {module_name}: {exc.__class__.__name__}: {exc}")
+    return "\n".join(lines)
 
 
 def build_dataset(dataset_opt):
@@ -39,7 +51,14 @@ def build_dataset(dataset_opt):
             type (str): Dataset type.
     """
     dataset_opt = deepcopy(dataset_opt)
-    dataset = DATASET_REGISTRY.get(dataset_opt["type"])(dataset_opt)
+    try:
+        dataset_cls = DATASET_REGISTRY.get(dataset_opt["type"])
+    except KeyError as exc:
+        import_errors = _format_import_errors()
+        if import_errors:
+            raise KeyError(f"{exc}\n{import_errors}") from exc
+        raise
+    dataset = dataset_cls(dataset_opt)
     logger = get_root_logger()
     logger.info(
         f'Dataset [{dataset.__class__.__name__}] - {dataset_opt["name"]} is built.'

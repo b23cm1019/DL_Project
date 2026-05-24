@@ -73,6 +73,12 @@ Scale targets (per DCPT Scaling Guide):
 EOF
 }
 
+preflight_import() {
+  local module="$1"
+  echo "[INFO] Preflight import check: ${module}"
+  python -c "import importlib; importlib.import_module('${module}'); print('[INFO] Preflight import OK: ${module}')"
+}
+
 run_stage() {
   set +e
   "$@" 2>&1 | stdbuf -oL -eL grep -E --line-buffered "$LOG_FILTER"
@@ -101,46 +107,57 @@ EXTRA_ARGS=("$@")
 
 case "$STAGE" in
   row_b_pretrain)
+    preflight_import basicsr.all_in_one_train
     echo "Starting Row B Pretraining (11-class single-label FocalLoss, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
   row_b_pretrain_resume)
+    preflight_import basicsr.all_in_one_train
     echo "Resuming Row B Pretraining from latest state (port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_baseline.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
     ;;
   row_b_finetune)
+    preflight_import basicsr.all_in_one_train
     echo "Starting Row B Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_baseline.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain)
+    preflight_import basicsr.all_in_one_train
     echo "Starting Row C Pretraining (4-primitive multi-hot BCE, 100k iters, GPU ${CUDA_VISIBLE_DEVICES}, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch "${EXTRA_ARGS[@]}"
     ;;
   row_c_pretrain_resume)
+    preflight_import basicsr.all_in_one_train
     echo "Resuming Row C Pretraining from latest state (port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/pretrain_multilabel.yml --launcher pytorch --auto_resume --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 "${EXTRA_ARGS[@]}"
     ;;
   row_c_finetune)
+    preflight_import basicsr.all_in_one_train
     echo "Starting Row C Finetuning (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_multilabel.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune)
+    preflight_import basicsr.all_in_one_train
     echo "Starting Row D Finetuning with Prompt Injection (500k iters, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   row_d_finetune_resume)
+    preflight_import basicsr.all_in_one_train
     echo "Resuming Row D Finetuning with Prompt Injection (non-strict generator load, checkpoints every 50k, no in-training validation, port ${MASTER_PORT})"
     run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 basicsr/all_in_one_train.py -opt options/cdd_experiments/finetune_prompt.yml --launcher pytorch --auto_resume --force_yml classify=false resume_remove_dc=true path:strict_load_g=false val:val_freq=500001 logger:save_checkpoint_freq=50000 "${EXTRA_ARGS[@]}"
     ;;
   test_row_b)
+    preflight_import basicsr.test
     echo "Running Evaluation for Row B"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_baseline.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_c)
+    preflight_import basicsr.test
     echo "Running Evaluation for Row C"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_multilabel.yml "${EXTRA_ARGS[@]}"
     ;;
   test_row_d)
+    preflight_import basicsr.test
     echo "Running Evaluation for Row D"
     run_stage python basicsr/test.py -opt options/cdd_experiments/test_prompt.yml "${EXTRA_ARGS[@]}"
     ;;

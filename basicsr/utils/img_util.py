@@ -3,7 +3,6 @@ import os
 
 import cv2
 import numpy as np
-import skimage.io as skio
 import torch
 from torchvision.utils import make_grid
 
@@ -169,14 +168,18 @@ def imwrite(img, file_path, depth=8, params=None, auto_mkdir=True):
     if auto_mkdir:
         dir_name = os.path.abspath(os.path.dirname(file_path))
         os.makedirs(dir_name, exist_ok=True)
-    ok = None
-    if depth == 8:
-        ok = cv2.imwrite(file_path, img, params)
-    elif depth == 16:
-        skio.imsave(file_path, img)
-        ok = True
-    if ok is None:
-        raise IOError("Failed in writing images.")
+    if depth not in {8, 16}:
+        raise ValueError(f"Unsupported image depth: {depth}. Expected 8 or 16.")
+
+    if depth == 8 and img.dtype != np.uint8:
+        img = np.clip(img, 0, 255).astype(np.uint8)
+    elif depth == 16 and img.dtype != np.uint16:
+        img = np.clip(img, 0, 65535).astype(np.uint16)
+
+    ok = cv2.imwrite(file_path, img, params if params is not None else [])
+    if not ok:
+        raise IOError(f"Failed in writing image to {file_path}.")
+    return ok
 
 
 def crop_border(imgs, crop_border):
