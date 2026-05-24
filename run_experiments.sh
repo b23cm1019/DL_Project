@@ -15,13 +15,24 @@ export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 # The system module (/opt/ohpc/apps/python/3.10.pytorch) has torchvision built
 # against CUDA 12.1, which conflicts with the venv's PyTorch (CUDA 11.8).
 # Prepending the venv bin ensures venv torchrun and python are used everywhere.
+# ── Force venv python for all training processes ──────────────────────────────
+# torchrun resolves to the system binary (/opt/ohpc/.../torchrun) even when the
+# venv is active, and that binary spawns system python3.10 which has the wrong
+# torchvision (CUDA 12.1 vs PyTorch CUDA 11.8).
+# Fix: replace torchrun with "python -m torch.distributed.run" which always uses
+# whichever python binary is first in PATH — i.e. the venv's python.
 if [ -n "${VIRTUAL_ENV:-}" ]; then
     export PATH="$VIRTUAL_ENV/bin:$PATH"
-    echo "[INFO] torchrun : $(which torchrun)"
     echo "[INFO] python   : $(which python)"
 else
-    echo "[WARN] No active venv detected. torchrun may resolve to system binary."
+    echo "[WARN] No active venv detected."
 fi
+
+# Alias torchrun to python -m torch.distributed.run for this session
+torchrun() {
+    python -m torch.distributed.run "$@"
+}
+export -f torchrun
 
 export MASTER_PORT="${MASTER_PORT:-29500}"
 
