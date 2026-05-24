@@ -1,40 +1,51 @@
 #!/bin/bash
-# Submit the full experiment pipeline for cn07 (A6000 48GB, Config B).
-# Pre-trains for Row B and Row C run first (can overlap on separate GPUs).
-# Fine-tuning jobs are submitted with afterok dependencies.
+# Submit Row C pretrain → then Row C and Row D finetune.
 #
-# Usage: bash slurm/submit_all.sh
+# QOS limits (phd partition, shared account):
+#   MaxSubmitPU = 3  (submitted + running)
+#   MaxJobsPU   = 2  (running at once)
+#   MaxTRESPU   = gres/gpu=2
 #
-# To run Row B and Row C pretraining in parallel on two different A6000 GPUs,
-# edit the CUDA_VISIBLE_DEVICES lines in each slurm script before submitting.
+# Strategy:
+#   1. Submit Row C pretrain now (1 job).
+#   2. After it finishes, run: bash slurm/submit_finetune.sh C
+#                          and: bash slurm/submit_finetune.sh D
 
 set -euo pipefail
 
-mkdir -p logs
+PARTITION="phd"
+ACCOUNT="root"
 
-# ── Pre-training (submit both; they can run on different A6000 GPUs) ───────────
-echo "Submitting Row B pre-training..."
-JOB_PTB=$(sbatch --parsable slurm/pretrain_rowB.sh)
-echo "  Row B pretrain → job ${JOB_PTB}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_DIR"
 
+echo "Working directory: $(pwd)"
+echo "Using partition=${PARTITION} account=${ACCOUNT}"
+echo ""
+
+# ── Check current job count ────────────────────────────────────────────────────
+CURRENT_JOBS=$(squeue --me --noheader | wc -l)
+echo "[INFO] You currently have ${CURRENT_JOBS} job(s) in the queue."
+if [ "$CURRENT_JOBS" -ge 3 ]; then
+    echo "[ERROR] Queue full (${CURRENT_JOBS}/3 slots used). Wait for a job to finish."
+    echo "        squeue --me"
+    exit 1
+fi
+
+SBATCH_ARGS="--partition=${PARTITION} --account=${ACCOUNT} --nodelist=cn07"
+
+# ── Submit Row C pretrain only ─────────────────────────────────────────────────
 echo "Submitting Row C pre-training..."
-JOB_PTC=$(sbatch --parsable slurm/pretrain_rowC.sh)
+JOB_PTC=$(sbatch --parsable ${SBATCH_ARGS} slurm/pretrain_rowC.sh)
 echo "  Row C pretrain → job ${JOB_PTC}"
 
-# ── Fine-tuning (each waits for the relevant pretrain to finish) ──────────────
-echo "Submitting Row B fine-tuning (after job ${JOB_PTB})..."
-JOB_FTB=$(sbatch --parsable --dependency=afterok:${JOB_PTB} slurm/finetune_rowB.sh)
-echo "  Row B finetune → job ${JOB_FTB}"
-
-echo "Submitting Row C fine-tuning (after job ${JOB_PTC})..."
-JOB_FTC=$(sbatch --parsable --dependency=afterok:${JOB_PTC} slurm/finetune_rowC.sh)
-echo "  Row C finetune → job ${JOB_FTC}"
-
-echo "Submitting Row D fine-tuning (after job ${JOB_PTC})..."
-JOB_FTD=$(sbatch --parsable --dependency=afterok:${JOB_PTC} slurm/finetune_rowD.sh)
-echo "  Row D finetune → job ${JOB_FTD}"
-
 echo ""
-echo "All jobs submitted. Monitor with:"
-echo "  squeue --me"
-echo "  watch -n 30 'squeue --me'"
+echo "Next steps — after Row C pretrain (job ${JOB_PTC}) finishes:"
+echo ""
+echo "  bash slurm/submit_finetune.sh C   # Row C finetune"
+echo "  bash slurm/submit_finetune.sh D   # Row D finetune (uses Row C checkpoint)"
+echo ""
+echo "Monitor : squeue --me"
+echo "Log     : tail -f /scratch/p24cs0203/krish/logs/pretrain_rowC_${JOB_PTC}.out"
+echo "Cancel  : scancel ${JOB_PTC}"

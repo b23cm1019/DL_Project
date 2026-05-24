@@ -13,7 +13,6 @@ ACCOUNT="root"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
-mkdir -p logs
 
 ROW="${1:-}"
 if [ -z "$ROW" ]; then
@@ -46,4 +45,4 @@ JOB_ID=$(sbatch --parsable ${SBATCH_ARGS} ${SCRIPT})
 echo "  Row ${ROW} finetune → job ${JOB_ID}"
 echo ""
 echo "Monitor : squeue --me"
-echo "Log     : tail -f logs/finetune_row${ROW}_${JOB_ID}.out"
+echo "Log     : tail -f /scratch/p24cs0203/krish/logs/finetune_row${ROW}_${JOB_ID}.out"
