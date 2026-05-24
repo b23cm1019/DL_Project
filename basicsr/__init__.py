@@ -1,8 +1,12 @@
-"""BasicSR package.
-
-Subpackages are intentionally not imported eagerly here. The training entry
-points already import the modules they need, and blanket imports make unrelated
-optional dependencies crash the process during startup.
-"""
-
-__all__ = []
+# https://github.com/xinntao/BasicSR
+# flake8: noqa
+from .archs import *
+from .data import *
+from .losses import *
+from .metrics import *
+from .models import *
+from .ops import *
+from .test import *
+from .train import *
+from .all_in_one_train import *
+from .utils import *

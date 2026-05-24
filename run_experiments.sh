@@ -6,30 +6,22 @@
 set -euo pipefail
 
 # ── GPU selection ──────────────────────────────────────────────────────────────
-# On cn07 the node has 6 GPUs:
-#   0,3,4,5 → NVIDIA RTX A6000 (49 GB, CUDA 11.8-compatible) ← USE THESE
-#   1,2     → NVIDIA RTX PRO 6000 Blackwell (98 GB, CUDA 12.1) ← AVOID
-# Default to GPU 0; override with: CUDA_VISIBLE_DEVICES=3 ./run_experiments.sh ...
+# SLURM assigns the GPU and remaps it to index 0 inside the job.
+# Default to 0 when running interactively.
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
-# Validate that the requested GPU is one of the safe A6000 cards
-_validate_gpu() {
-  local gpu="${CUDA_VISIBLE_DEVICES}"
-  case "$gpu" in
-    0|3|4|5) ;;   # A6000 — OK
-    1|2)
-      echo "[ERROR] GPU ${gpu} is an RTX PRO 6000 Blackwell (CUDA 12.1) and is"
-      echo "        incompatible with this PyTorch environment (CUDA 11.8)."
-      echo "        Use CUDA_VISIBLE_DEVICES=0, 3, 4, or 5 (RTX A6000 cards)."
-      exit 1
-      ;;
-    *)
-      echo "[WARN] CUDA_VISIBLE_DEVICES='${gpu}' is not a recognised single GPU ID."
-      echo "       Safe single-GPU IDs on cn07: 0, 3, 4, 5"
-      ;;
-  esac
-}
-_validate_gpu
+# ── Resolve correct Python / torchrun from active venv ────────────────────────
+# CRITICAL: torchrun must come from the active venv, NOT the system module.
+# The system module (/opt/ohpc/apps/python/3.10.pytorch) has torchvision built
+# against CUDA 12.1, which conflicts with the venv's PyTorch (CUDA 11.8).
+# Prepending the venv bin ensures venv torchrun and python are used everywhere.
+if [ -n "${VIRTUAL_ENV:-}" ]; then
+    export PATH="$VIRTUAL_ENV/bin:$PATH"
+    echo "[INFO] torchrun : $(which torchrun)"
+    echo "[INFO] python   : $(which python)"
+else
+    echo "[WARN] No active venv detected. torchrun may resolve to system binary."
+fi
 
 export MASTER_PORT="${MASTER_PORT:-29500}"
 
