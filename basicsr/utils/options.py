@@ -97,6 +97,27 @@ def _postprocess_yml_value(value):
     return value
 
 
+def _remap_cdd11_path(path):
+    """Remap hardcoded CDD-11 paths to the cluster dataset root when available."""
+    data_root = os.environ.get("DCPT_DATA_ROOT")
+    if not data_root or not path:
+        return path
+
+    normalized = path.replace("\\", "/")
+    prefixes = {
+        "/data/datasets/CDD-11_train/CDD-11_train/": osp.join(
+            data_root, "train", "CDD-11_train"
+        ),
+        "/data/datasets/CDD-11_test/": osp.join(data_root, "test"),
+    }
+
+    for prefix, target_root in prefixes.items():
+        if normalized.startswith(prefix):
+            suffix = normalized[len(prefix) :].lstrip("/")
+            return osp.join(target_root, suffix)
+    return path
+
+
 def parse_options(root_path, is_train=True):
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -173,9 +194,13 @@ def parse_options(root_path, is_train=True):
         if "scale" in opt:
             dataset["scale"] = opt["scale"]
         if dataset.get("dataroot_gt") is not None:
-            dataset["dataroot_gt"] = osp.expanduser(dataset["dataroot_gt"])
+            dataset["dataroot_gt"] = _remap_cdd11_path(
+                osp.expanduser(dataset["dataroot_gt"])
+            )
         if dataset.get("dataroot_lq") is not None:
-            dataset["dataroot_lq"] = osp.expanduser(dataset["dataroot_lq"])
+            dataset["dataroot_lq"] = _remap_cdd11_path(
+                osp.expanduser(dataset["dataroot_lq"])
+            )
 
     # paths
     for key, val in opt["path"].items():
