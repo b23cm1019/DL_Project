@@ -157,6 +157,18 @@ To repair existing envs without rebuilding:
 bash /csehome/p24cs0203/krish/projects/DL_Project/install_venv_packages.sh
 ```
 
+To run the build in a detached SLURM job so it keeps going even if your laptop disconnects:
+
+```bash
+sbatch /csehome/p24cs0203/krish/projects/DL_Project/slurm/setup_envs.slurm
+```
+
+To resume or repair after a network interruption:
+
+```bash
+sbatch /csehome/p24cs0203/krish/projects/DL_Project/slurm/repair_envs.slurm
+```
+
 To diagnose both envs interactively:
 
 ```bash

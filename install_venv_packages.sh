@@ -66,8 +66,8 @@ install_into_venv() {
     local torch_wheelhouse="$6"
 
     if [[ ! -f "${venv_root}/bin/activate" ]]; then
-        echo "[SKIP] venv not found: ${venv_root}"
-        return
+        echo "[WARN] venv not found, creating: ${venv_root}"
+        python3 -m venv "${venv_root}" --without-pip
     fi
 
     source "${venv_root}/bin/activate"
@@ -76,6 +76,9 @@ install_into_venv() {
     echo ""
     echo "=== Repairing ${venv_root} (${cuda_flavor}) ==="
     echo "[INFO] python: $(which python)"
+
+    python -m ensurepip --upgrade
+    python -m pip install --quiet --upgrade pip setuptools wheel
 
     pip install --quiet \
         --no-index \
