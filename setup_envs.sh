@@ -146,10 +146,10 @@ TEST_CHECK="${DATA_ROOT}/test/clear"
 log "Dataset paths verified OK"
 
 prepare_shared_wheelhouse
-prepare_torch_wheelhouse "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "${CU118_WHEELHOUSE}"
+# prepare_torch_wheelhouse "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "${CU118_WHEELHOUSE}"
 prepare_torch_wheelhouse "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "${CU121_WHEELHOUSE}"
 
-build_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8" "${CU118_WHEELHOUSE}"
+# build_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8" "${CU118_WHEELHOUSE}"
 
 echo ""
 
