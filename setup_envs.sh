@@ -22,6 +22,11 @@ VENV_CU118="${HOME_ROOT}/envs/dl_project"
 VENV_CU121="${HOME_ROOT}/envs/dl_project_cu121"
 REQUIREMENTS_FILE="${PROJECT}/requirements-cluster.txt"
 VALIDATOR="${PROJECT}/scripts/validate_cluster_env.py"
+PIP_CACHE_DIR="${SCRATCH_ROOT}/pip-cache"
+WHEELHOUSE_ROOT="${SCRATCH_ROOT}/wheelhouse/dl_project_py310"
+SHARED_WHEELHOUSE="${WHEELHOUSE_ROOT}/shared"
+CU118_WHEELHOUSE="${WHEELHOUSE_ROOT}/cu118"
+CU121_WHEELHOUSE="${WHEELHOUSE_ROOT}/cu121"
 TORCH_CU118="2.1.2+cu118"
 TORCHVISION_CU118="0.16.2+cu118"
 TORCH_CU121="2.3.1+cu121"
@@ -34,6 +39,7 @@ module purge 2>/dev/null || true
 module load python/3.10.pytorch 2>/dev/null || true
 
 export PYTHONNOUSERSITE=1
+export PIP_CACHE_DIR
 
 log()  { echo "[INFO ] $*"; }
 warn() { echo "[WARN ] $*"; }
@@ -46,12 +52,38 @@ require_gpu() {
     log "GPU(s): $(nvidia-smi --query-gpu=name --format=csv,noheader | tr '\n' ',')"
 }
 
+prepare_shared_wheelhouse() {
+    mkdir -p "${PIP_CACHE_DIR}" "${SHARED_WHEELHOUSE}"
+    log "Prefetching shared wheels into ${SHARED_WHEELHOUSE} ..."
+    python3 -m pip download \
+        --disable-pip-version-check \
+        --dest "${SHARED_WHEELHOUSE}" \
+        -r "${REQUIREMENTS_FILE}"
+}
+
+prepare_torch_wheelhouse() {
+    local cuda_flavor="$1"
+    local torch_ver="$2"
+    local torchvision_ver="$3"
+    local torch_wheelhouse="$4"
+
+    mkdir -p "${torch_wheelhouse}"
+    log "Prefetching ${cuda_flavor} torch wheels into ${torch_wheelhouse} ..."
+    python3 -m pip download \
+        --disable-pip-version-check \
+        --dest "${torch_wheelhouse}" \
+        --index-url "https://download.pytorch.org/whl/${cuda_flavor}" \
+        "torch==${torch_ver}" \
+        "torchvision==${torchvision_ver}"
+}
+
 build_venv() {
     local venv_root="$1"
     local cuda_flavor="$2"
     local torch_ver="$3"
     local torchvision_ver="$4"
     local expected_cuda="$5"
+    local torch_wheelhouse="$6"
 
     log "================================================"
     log "Building : ${venv_root}"
@@ -69,14 +101,20 @@ build_venv() {
     python -c "import site; assert not site.ENABLE_USER_SITE, 'user site enabled!'"
     log "User site isolation: OK"
 
-    log "Installing torch ${torch_ver} + torchvision ${torchvision_ver} ..."
+    log "Installing torch ${torch_ver} + torchvision ${torchvision_ver} from local wheelhouse ..."
     pip install --quiet \
+        --no-index \
+        --find-links "${torch_wheelhouse}" \
+        --find-links "${SHARED_WHEELHOUSE}" \
         "torch==${torch_ver}" \
         "torchvision==${torchvision_ver}" \
-        --index-url "https://download.pytorch.org/whl/${cuda_flavor}"
+        --prefer-binary
 
-    log "Installing project requirements from ${REQUIREMENTS_FILE} ..."
-    pip install --quiet -r "${REQUIREMENTS_FILE}"
+    log "Installing project requirements from local wheelhouse ..."
+    pip install --quiet \
+        --no-index \
+        --find-links "${SHARED_WHEELHOUSE}" \
+        -r "${REQUIREMENTS_FILE}"
 
     local pth_file="${venv_root}/lib/python3.10/site-packages/dcpt_project.pth"
     echo "${PROJECT}" > "${pth_file}"
@@ -107,11 +145,15 @@ TEST_CHECK="${DATA_ROOT}/test/clear"
 [[ -d "${TEST_CHECK}"  ]] || die "Test dataset not found: ${TEST_CHECK}"
 log "Dataset paths verified OK"
 
-build_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8"
+prepare_shared_wheelhouse
+prepare_torch_wheelhouse "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "${CU118_WHEELHOUSE}"
+prepare_torch_wheelhouse "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "${CU121_WHEELHOUSE}"
+
+build_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8" "${CU118_WHEELHOUSE}"
 
 echo ""
 
-build_venv "${VENV_CU121}" "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "12.1"
+build_venv "${VENV_CU121}" "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "12.1" "${CU121_WHEELHOUSE}"
 
 echo ""
 log "================================================"

@@ -13,6 +13,11 @@ PROJECT_ROOT="${HOME_ROOT}/projects/DL_Project"
 DATA_ROOT="${SCRATCH_ROOT}/datasets/CDD11"
 REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements-cluster.txt"
 VALIDATOR="${PROJECT_ROOT}/scripts/validate_cluster_env.py"
+PIP_CACHE_DIR="${SCRATCH_ROOT}/pip-cache"
+WHEELHOUSE_ROOT="${SCRATCH_ROOT}/wheelhouse/dl_project_py310"
+SHARED_WHEELHOUSE="${WHEELHOUSE_ROOT}/shared"
+CU118_WHEELHOUSE="${WHEELHOUSE_ROOT}/cu118"
+CU121_WHEELHOUSE="${WHEELHOUSE_ROOT}/cu121"
 VENV_CU118="${HOME_ROOT}/envs/dl_project"
 VENV_CU121="${HOME_ROOT}/envs/dl_project_cu121"
 TORCH_CU118="2.1.2+cu118"
@@ -27,6 +32,30 @@ module purge 2>/dev/null || true
 module load python/3.10.pytorch 2>/dev/null || true
 
 export PYTHONNOUSERSITE=1
+export PIP_CACHE_DIR
+
+prepare_shared_wheelhouse() {
+    mkdir -p "${PIP_CACHE_DIR}" "${SHARED_WHEELHOUSE}"
+    python3 -m pip download \
+        --disable-pip-version-check \
+        --dest "${SHARED_WHEELHOUSE}" \
+        -r "${REQUIREMENTS_FILE}"
+}
+
+prepare_torch_wheelhouse() {
+    local cuda_flavor="$1"
+    local torch_ver="$2"
+    local torchvision_ver="$3"
+    local torch_wheelhouse="$4"
+
+    mkdir -p "${torch_wheelhouse}"
+    python3 -m pip download \
+        --disable-pip-version-check \
+        --dest "${torch_wheelhouse}" \
+        --index-url "https://download.pytorch.org/whl/${cuda_flavor}" \
+        "torch==${torch_ver}" \
+        "torchvision==${torchvision_ver}"
+}
 
 install_into_venv() {
     local venv_root="$1"
@@ -34,6 +63,7 @@ install_into_venv() {
     local torch_ver="$3"
     local torchvision_ver="$4"
     local expected_cuda="$5"
+    local torch_wheelhouse="$6"
 
     if [[ ! -f "${venv_root}/bin/activate" ]]; then
         echo "[SKIP] venv not found: ${venv_root}"
@@ -48,11 +78,17 @@ install_into_venv() {
     echo "[INFO] python: $(which python)"
 
     pip install --quiet \
+        --no-index \
+        --find-links "${torch_wheelhouse}" \
+        --find-links "${SHARED_WHEELHOUSE}" \
         "torch==${torch_ver}" \
         "torchvision==${torchvision_ver}" \
-        --index-url "https://download.pytorch.org/whl/${cuda_flavor}"
+        --prefer-binary
 
-    pip install --quiet -r "${REQUIREMENTS_FILE}"
+    pip install --quiet \
+        --no-index \
+        --find-links "${SHARED_WHEELHOUSE}" \
+        -r "${REQUIREMENTS_FILE}"
 
     echo "${PROJECT_ROOT}" > "${venv_root}/lib/python3.10/site-packages/dcpt_project.pth"
 
@@ -68,8 +104,12 @@ install_into_venv() {
     deactivate
 }
 
-install_into_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8"
-install_into_venv "${VENV_CU121}" "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "12.1"
+prepare_shared_wheelhouse
+prepare_torch_wheelhouse "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "${CU118_WHEELHOUSE}"
+prepare_torch_wheelhouse "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "${CU121_WHEELHOUSE}"
+
+install_into_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8" "${CU118_WHEELHOUSE}"
+install_into_venv "${VENV_CU121}" "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "12.1" "${CU121_WHEELHOUSE}"
 
 echo ""
 echo "=== Both venvs repaired and validated. ==="
