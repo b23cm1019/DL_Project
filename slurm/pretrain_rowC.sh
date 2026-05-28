@@ -4,33 +4,26 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:1
 #SBATCH --nodelist=cn07
-#SBATCH --output=/scratch/p24cs0203/krish/logs/pretrain_rowC_%j.out
+#SBATCH --output=/csehome/p24cs0203/krish/logs/slurm/pretrain_rowC_%j.out
+#SBATCH --error=/csehome/p24cs0203/krish/logs/slurm/pretrain_rowC_%j.err
+#SBATCH --time=08:00:00
 
 set -euo pipefail
 
-PROJECT_ROOT="/scratch/p24cs0203/krish/projects/DL_Project"
+mkdir -p /csehome/p24cs0203/krish/logs/slurm
 
+PROJECT_ROOT="/csehome/p24cs0203/krish/projects/DL_Project"
 cd "${PROJECT_ROOT}"
 
-# -----------------------------------------------------------------------------
-# Centralized environment setup
-# -----------------------------------------------------------------------------
 source "${PROJECT_ROOT}/slurm/_cluster_env.sh"
 
-# -----------------------------------------------------------------------------
-# Diagnostics
-# -----------------------------------------------------------------------------
 echo "Node    : $(hostname)"
-echo "GPU(s)  : $(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)"
+echo "GPU     : ${DCPT_GPU_NAME}"
 echo "Started : $(date)"
 
 echo "=== STARTING ROW C PRE-TRAINING ==="
-
-# -----------------------------------------------------------------------------
-# Run experiment
-# -----------------------------------------------------------------------------
-bash run_experiments.sh row_c_pretrain
-
-echo "=== ROW C PRE-TRAINING COMPLETE: $(date) ==="
+bash "${PROJECT_ROOT}/run_experiments.sh" row_c_pretrain
+echo "=== ROW C PRE-TRAINING COMPLETE : $(date) ==="
