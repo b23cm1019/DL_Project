@@ -1,3 +1,6 @@
+# Local-development fallback only.
+# For cn07, use setup_envs.sh plus requirements-cluster.txt because the cluster
+# needs two separate CUDA-specific virtual environments.
 name: dcpt
 channels:
   - pytorch

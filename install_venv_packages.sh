@@ -1,86 +1,75 @@
 #!/bin/bash
-# Run this ONCE on cn07 to install all missing packages into both venvs.
-# Usage: bash install_venv_packages.sh
+# Repair or populate both existing cn07 venvs without rebuilding them.
 #
 # Run interactively:
 #   srun --partition=phd --nodelist=cn07 --gres=gpu:1 --pty bash
-#   bash /scratch/p24cs0203/krish/projects/DL_Project/install_venv_packages.sh
+#   bash /csehome/p24cs0203/krish/projects/DL_Project/install_venv_packages.sh
 
 set -euo pipefail
 
-module load python/3.10.pytorch
+HOME_ROOT="/csehome/p24cs0203/krish"
+SCRATCH_ROOT="/scratch/p24cs0203/krish"
+PROJECT_ROOT="${HOME_ROOT}/projects/DL_Project"
+DATA_ROOT="${SCRATCH_ROOT}/datasets/CDD11"
+REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements-cluster.txt"
+VALIDATOR="${PROJECT_ROOT}/scripts/validate_cluster_env.py"
+VENV_CU118="${HOME_ROOT}/envs/dl_project"
+VENV_CU121="${HOME_ROOT}/envs/dl_project_cu121"
+TORCH_CU118="2.1.2+cu118"
+TORCHVISION_CU118="0.16.2+cu118"
+TORCH_CU121="2.3.1+cu121"
+TORCHVISION_CU121="0.18.1+cu121"
+
+if [[ -f /etc/profile.d/modules.sh ]]; then
+    source /etc/profile.d/modules.sh
+fi
+module purge 2>/dev/null || true
+module load python/3.10.pytorch 2>/dev/null || true
+
 export PYTHONNOUSERSITE=1
 
-# All pip packages needed by the project (from environment.yaml)
-PACKAGES=(
-    scikit-image==0.21.0
-    scikit-learn==1.3.0
-    opencv-python==4.8.0.74
-    einops==0.6.1
-    lmdb==1.4.1
-    pyyaml==6.0
-    tqdm==4.65.0
-    tensorboard==2.13.0
-    timm==0.6.13
-    imageio==2.31.1
-    scipy==1.11.1
-    matplotlib==3.7.2
-    h5py==3.9.0
-    pandas==2.0.3
-    seaborn==0.12.2
-    huggingface-hub==0.15.1
-    mrcfile==1.4.3
-    tifffile==2023.4.12
-    torchinfo==1.8.0
-    packaging==23.1
-)
-
 install_into_venv() {
-    local venv="$1"
-    local cuda_tag="$2"
+    local venv_root="$1"
+    local cuda_flavor="$2"
+    local torch_ver="$3"
+    local torchvision_ver="$4"
+    local expected_cuda="$5"
 
-    if [ ! -f "$venv/bin/activate" ]; then
-        echo "[SKIP] venv not found: $venv"
+    if [[ ! -f "${venv_root}/bin/activate" ]]; then
+        echo "[SKIP] venv not found: ${venv_root}"
         return
     fi
 
-    source "$venv/bin/activate"
-    export PATH="$venv/bin:$PATH"
+    source "${venv_root}/bin/activate"
+    export PATH="${venv_root}/bin:${PATH}"
+
     echo ""
-    echo "=== Installing into $venv (${cuda_tag}) ==="
+    echo "=== Repairing ${venv_root} (${cuda_flavor}) ==="
     echo "[INFO] python: $(which python)"
 
-    # Install torch + torchvision for this cuda version first
-    if [ "$cuda_tag" = "cu118" ]; then
-        pip install --quiet torch==2.1.2+cu118 torchvision==0.16.2+cu118 \
-            --index-url https://download.pytorch.org/whl/cu118
-    else
-        pip install --quiet torch torchvision \
-            --index-url https://download.pytorch.org/whl/cu121
-    fi
+    pip install --quiet \
+        "torch==${torch_ver}" \
+        "torchvision==${torchvision_ver}" \
+        --index-url "https://download.pytorch.org/whl/${cuda_flavor}"
 
-    # Install all project packages
-    pip install --quiet "${PACKAGES[@]}"
+    pip install --quiet -r "${REQUIREMENTS_FILE}"
 
-    # Install basicsr from project source if not already installed
-    if ! python -c "import basicsr" 2>/dev/null; then
-        echo "[INFO] Installing basicsr from source..."
-        pip install --quiet -e /scratch/p24cs0203/krish/projects/DL_Project/
-    fi
+    echo "${PROJECT_ROOT}" > "${venv_root}/lib/python3.10/site-packages/dcpt_project.pth"
 
-    echo "[INFO] Verifying key imports..."
-    python -c "
-import torch, torchvision, skimage, cv2, einops, lmdb, yaml, tqdm, tensorboard
-print('[OK] All key packages import successfully')
-print('[OK] PyTorch:', torch.__version__, 'CUDA:', torch.version.cuda)
-print('[OK] torchvision:', torchvision.__version__)
-print('[OK] GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NONE')
-"
+    python "${VALIDATOR}" \
+        --project-root "${PROJECT_ROOT}" \
+        --venv-root "${venv_root}" \
+        --data-root "${DATA_ROOT}" \
+        --expected-cuda "${expected_cuda}" \
+        --expected-torch "${torch_ver}" \
+        --expected-torchvision "${torchvision_ver}" \
+        --check-dataset
+
     deactivate
 }
 
-install_into_venv "/scratch/p24cs0203/krish/envs/dl_project" "cu118"
-install_into_venv "/scratch/p24cs0203/krish/envs/dl_project_cu121" "cu121"
+install_into_venv "${VENV_CU118}" "cu118" "${TORCH_CU118}" "${TORCHVISION_CU118}" "11.8"
+install_into_venv "${VENV_CU121}" "cu121" "${TORCH_CU121}" "${TORCHVISION_CU121}" "12.1"
 
 echo ""
-echo "=== All done. Both venvs are ready. ==="
+echo "=== Both venvs repaired and validated. ==="

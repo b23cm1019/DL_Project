@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="/scratch/p24cs0203/krish/projects/DL_Project"
+PROJECT_ROOT="/csehome/p24cs0203/krish/projects/DL_Project"
 
 cd "${PROJECT_ROOT}"
 
@@ -27,5 +27,5 @@ echo "  bash slurm/submit_finetune.sh D"
 
 echo ""
 echo "Monitor : squeue --me"
-echo "Log     : tail -f /scratch/p24cs0203/krish/logs/pretrain_rowC_${JOB_ID}.out"
+echo "Log     : tail -f /csehome/p24cs0203/krish/logs/slurm/pretrain_rowC_${JOB_ID}.out"
 echo "Cancel  : scancel ${JOB_ID}"

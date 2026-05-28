@@ -129,16 +129,45 @@ This makes the weak supervision more aligned with the restoration problem, espec
 
 ## Environment Setup
 
-Create the environment from the provided conda specification.
+### cn07 Cluster Workflow
 
-Example:
+This project is designed around `two` Linux virtual environments because cn07 may assign either:
+
+- `RTX A6000` GPUs that need the `cu118` stack
+- `RTX PRO 6000 Blackwell` GPUs that need the `cu121` stack
+
+Use the repo's cluster scripts rather than the old single-env conda example:
 
 ```bash
-conda env create -f environment.yaml
-conda activate torch_env
+srun --partition=phd --nodelist=cn07 --gres=gpu:1 --cpus-per-task=8 --mem=32G --pty bash
+bash /csehome/p24cs0203/krish/projects/DL_Project/setup_envs.sh
 ```
 
-If your local package versions differ, adapt accordingly. The project was run with PyTorch + CUDA on multi-GPU Linux servers.
+What this does:
+
+- builds `/csehome/p24cs0203/krish/envs/dl_project` for `torch==2.1.2+cu118`
+- builds `/csehome/p24cs0203/krish/envs/dl_project_cu121` for `torch==2.3.1+cu121`
+- installs the shared repo requirements from [`requirements-cluster.txt`](./requirements-cluster.txt)
+- registers the repo with a `.pth` file so `basicsr` imports cleanly
+- validates torch, torchvision, imports, dataset paths, and GPU compatibility
+
+To repair existing envs without rebuilding:
+
+```bash
+bash /csehome/p24cs0203/krish/projects/DL_Project/install_venv_packages.sh
+```
+
+To diagnose both envs interactively:
+
+```bash
+bash /csehome/p24cs0203/krish/projects/DL_Project/diagnose_envs.sh
+```
+
+Every SLURM job should source [`slurm/_cluster_env.sh`](./slurm/_cluster_env.sh), which auto-detects the assigned GPU and activates the matching venv.
+
+### Local / Non-cluster Note
+
+`environment.yaml` is only a starting point for local development. It is not the source of truth for cn07 because a single conda file cannot represent both CUDA stacks at once.
 
 ## Running the Experiments
 

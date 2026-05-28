@@ -22,8 +22,8 @@ fi
 
 ROW=$(echo "$ROW" | tr '[:lower:]' '[:upper:]')
 case "$ROW" in
-    C) SCRIPT="slurm/finetune_rowC.sh" ;;
-    D) SCRIPT="slurm/finetune_rowD.sh" ;;
+    C) SCRIPT="slurm/row_c_finetune.sh" ;;
+    D) SCRIPT="slurm/row_d_finetune.sh" ;;
     *)
         echo "Unknown row: $ROW. Use C or D only."
         exit 1
@@ -45,4 +45,4 @@ JOB_ID=$(sbatch --parsable ${SBATCH_ARGS} ${SCRIPT})
 echo "  Row ${ROW} finetune → job ${JOB_ID}"
 echo ""
 echo "Monitor : squeue --me"
-echo "Log     : tail -f /scratch/p24cs0203/krish/logs/finetune_row${ROW}_${JOB_ID}.out"
+echo "Log     : tail -f /csehome/p24cs0203/krish/logs/slurm/row_${ROW,,}_finetune_${JOB_ID}.out"
