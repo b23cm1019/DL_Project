@@ -40,7 +40,6 @@ torchrun() {
 export -f torchrun
 
 export MASTER_PORT="${MASTER_PORT:-29500}"
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
 # ── Log filter: only show meaningful lines ────────────────────────────────────
 LOG_FILTER='Starting |Start training|Resuming training|Saving models|Validation|Testing |End of training|Save the latest|iter:|Traceback|Error|Exception|failed|Killed|WARN|INFO'

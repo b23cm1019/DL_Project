@@ -33,7 +33,15 @@ export PYTHONNOUSERSITE=1
 unset PYTHONHOME 2>/dev/null || true
 unset PYTHONPATH 2>/dev/null || true
 
-GPU_NAME="$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader 2>/dev/null | head -n1 | tr -d '\r' || echo 'unknown')"
+GPU_ID="${CUDA_VISIBLE_DEVICES%%,*}"
+
+GPU_NAME="$(nvidia-smi -i "${GPU_ID}" \
+    --query-gpu=name \
+    --format=csv,noheader \
+    2>/dev/null | head -n1 | tr -d '\r')"
+
+echo "[INFO] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+
 GPU_NAME="${GPU_NAME:-unknown}"
 GPU_NAME_LC="${GPU_NAME,,}"
 
@@ -96,6 +104,9 @@ mkdir -p \
 
 export MASTER_PORT="${MASTER_PORT:-29500}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-max_split_size_mb:512}"
+
+export NCCL_DEBUG=INFO
+export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
 echo "[INFO] Cluster env ready"
 echo "[INFO] GPU class      : ${DCPT_GPU_CLASS} (${DCPT_CUDA_FLAVOR})"
