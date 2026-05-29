@@ -28,6 +28,16 @@ if [[ -z "${DCPT_CUDA_FLAVOR:-}" ]]; then
     exit 1
 fi
 
+# ── Guard: Blackwell GPUs are not supported (sm_120) ──────────────────────────
+if [[ "${DCPT_GPU_CLASS:-}" == "blackwell" ]]; then
+    echo "============================================================"
+    echo "[ERROR] Blackwell GPU (sm_120) detected via DCPT_GPU_CLASS."
+    echo "[ERROR] This should have been caught by _cluster_env.sh."
+    echo "[ERROR] Aborting to prevent a crash during training."
+    echo "============================================================"
+    exit 1
+fi
+
 # ── Ensure venv torchrun is always first in PATH ──────────────────────────────
 export PATH="${VENV_ROOT}/bin:${PATH}"
 

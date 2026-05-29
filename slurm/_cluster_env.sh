@@ -54,13 +54,59 @@ echo "[INFO] Assigned GPU : ${GPU_NAME}"
 export DCPT_GPU_NAME="${GPU_NAME}"
 
 if [[ "${GPU_NAME_LC}" == *blackwell* || "${GPU_NAME_LC}" == *"pro 6000"* ]]; then
-    export DCPT_GPU_CLASS="blackwell"
-    export DCPT_CUDA_FLAVOR="cu121"
-    export DCPT_EXPECTED_TORCH_CUDA="12.1"
-    export DCPT_EXPECTED_TORCH_VERSION="2.3.1+cu121"
-    export DCPT_EXPECTED_TORCHVISION_VERSION="0.18.1+cu121"
-    export VENV_ROOT="${VENV_BASE}/dl_project_cu121"
-    echo "[INFO] GPU class     : Blackwell -> cu121 venv"
+    # ── Blackwell (sm_120) is NOT supported by any available PyTorch build ─────
+    echo "============================================================"
+    echo "[WARN] Blackwell GPU detected: ${GPU_NAME}"
+    echo "[WARN] Blackwell requires compute capability sm_120, which"
+    echo "       is NOT supported by any available PyTorch build."
+    echo "[WARN] This job CANNOT run on this GPU."
+    echo "============================================================"
+
+    if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+        MAX_RETRIES=5
+        # Retry file lives on persistent home filesystem so it survives requeues
+        mkdir -p "${LOG_ROOT}/slurm"
+        RETRY_FILE="${LOG_ROOT}/slurm/.blackwell_retry_${SLURM_JOB_ID}"
+
+        RETRY_COUNT=0
+        if [[ -f "${RETRY_FILE}" ]]; then
+            RETRY_COUNT=$(cat "${RETRY_FILE}" 2>/dev/null || echo 0)
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+
+        echo "[INFO] ── Auto-requeue status ──"
+        echo "[INFO] SLURM Job ID  : ${SLURM_JOB_ID}"
+        echo "[INFO] Retry attempt : ${RETRY_COUNT} / ${MAX_RETRIES}"
+        echo "[INFO] Retry file    : ${RETRY_FILE}"
+        echo "[INFO] Timestamp     : $(date '+%Y-%m-%d %H:%M:%S')"
+
+        if [[ ${RETRY_COUNT} -le ${MAX_RETRIES} ]]; then
+            echo "${RETRY_COUNT}" > "${RETRY_FILE}"
+            echo "[INFO] Releasing Blackwell GPU and requeueing job..."
+            echo "[INFO] Sleeping 15s to let GPU state settle before requeue..."
+            sleep 15
+            echo "[INFO] Executing: scontrol requeue ${SLURM_JOB_ID}"
+            scontrol requeue "${SLURM_JOB_ID}"
+            # scontrol requeue sends SIGTERM; sleep as a fallback guard
+            echo "[INFO] Requeue signal sent. Waiting for SLURM to terminate this run..."
+            sleep 30
+            # If we somehow reach here, exit cleanly
+            exit 0
+        else
+            echo "============================================================"
+            echo "[FATAL] Exhausted all ${MAX_RETRIES} requeue attempts."
+            echo "[FATAL] Every attempt was assigned a Blackwell GPU."
+            echo "[FATAL] All A6000 GPUs are likely occupied."
+            echo "[FATAL] Please try again later when A6000 GPUs are free."
+            echo "============================================================"
+            rm -f "${RETRY_FILE}"
+            exit 1
+        fi
+    else
+        echo "[FATAL] Not running under SLURM — cannot auto-requeue."
+        echo "[FATAL] Please ensure you are on an A6000 GPU."
+        exit 1
+    fi
 else
     export DCPT_GPU_CLASS="a6000"
     export DCPT_CUDA_FLAVOR="cu118"
@@ -69,6 +115,16 @@ else
     export DCPT_EXPECTED_TORCHVISION_VERSION="0.16.2+cu118"
     export VENV_ROOT="${VENV_BASE}/dl_project"
     echo "[INFO] GPU class     : A6000 -> cu118 venv"
+
+    # Clean up any stale retry file from a previous requeue cycle
+    if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+        RETRY_FILE="${LOG_ROOT}/slurm/.blackwell_retry_${SLURM_JOB_ID}"
+        if [[ -f "${RETRY_FILE}" ]]; then
+            PAST_RETRIES=$(cat "${RETRY_FILE}" 2>/dev/null || echo "?")
+            echo "[INFO] A6000 acquired after ${PAST_RETRIES} Blackwell requeue(s). Cleaning up retry file."
+            rm -f "${RETRY_FILE}"
+        fi
+    fi
 fi
 
 if [[ ! -f "${VENV_ROOT}/bin/activate" ]]; then
