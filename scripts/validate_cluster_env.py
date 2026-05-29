@@ -91,11 +91,15 @@ def check_project_registration(project_root: Path, failures: list[str]) -> None:
 
 
 def check_python_location(venv_root: Path, failures: list[str]) -> None:
-    executable = Path(sys.executable).resolve()
-    if venv_root.resolve() not in executable.parents:
-        fail(f"python executable is outside venv: {executable}", failures)
+    import sys
+
+    if Path(sys.prefix).resolve() != venv_root.resolve():
+        fail(
+            f"python is not running inside expected venv: {sys.prefix}",
+            failures,
+        )
     else:
-        info(f"python executable: {executable}")
+        info(f"python prefix: {sys.prefix}")
 
 
 def check_gpu(
