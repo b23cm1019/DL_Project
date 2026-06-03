@@ -129,7 +129,7 @@ unset PYTHONPATH 2>/dev/null || true
 
 echo "[INFO] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 
-GPU_NAME="$(python - <<'PY'
+GPU_NAME="$(python3 - <<'PY'
 import torch
 
 if torch.cuda.is_available():
@@ -194,7 +194,7 @@ if [[ ! -f "${PTH_FILE}" ]]; then
     echo "${PROJECT_ROOT}" > "${PTH_FILE}"
 fi
 
-python "${VALIDATOR}" \
+python3 "${VALIDATOR}" \
     --project-root "${PROJECT_ROOT}" \
     --venv-root "${VENV_ROOT}" \
     --data-root "${DCPT_DATA_ROOT}" \
