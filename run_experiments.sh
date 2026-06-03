@@ -28,15 +28,6 @@ if [[ -z "${DCPT_CUDA_FLAVOR:-}" ]]; then
     exit 1
 fi
 
-# ── Guard: Blackwell GPUs are not supported (sm_120) ──────────────────────────
-if [[ "${DCPT_GPU_CLASS:-}" == "blackwell" ]]; then
-    echo "============================================================"
-    echo "[ERROR] Blackwell GPU (sm_120) detected via DCPT_GPU_CLASS."
-    echo "[ERROR] This should have been caught by _cluster_env.sh."
-    echo "[ERROR] Aborting to prevent a crash during training."
-    echo "============================================================"
-    exit 1
-fi
 
 # ── Ensure venv torchrun is always first in PATH ──────────────────────────────
 export PATH="${VENV_ROOT}/bin:${PATH}"
@@ -125,7 +116,7 @@ Examples:
 
 GPU note (cn07):
   A6000 (GPUs 0,3,4,5)     : 49 GB, CUDA 11.8  → dl_project venv (cu118)
-  Blackwell (GPUs 1,2)      : 98 GB, CUDA 12.1  → dl_project_cu121 venv (cu121)
+  Blackwell (GPUs 1,2)      : 98 GB, CUDA 12.1  → dl_project_bw venv (cu128)
   SLURM remaps assigned GPU to index 0. _cluster_env.sh auto-selects the venv.
 EOF
 }
