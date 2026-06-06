@@ -133,11 +133,11 @@ EXTRA_ARGS=("$@")
 # ── Common LR overrides for scaled-down setup ─────────────────────────────────
 # These match the EXPERIMENTAL_SETUP.md parameters (batch=8, single GPU).
 SCALE_OVERRIDES=(
-    "--force_yml"
-    "dataloader:batch_size_per_gpu=8"
-    "train:optim_g:lr=1e-4"
-    "train:optim_dc:lr=5e-5"
-    "train:ema_decay=0"
+    # "--force_yml"
+    # "dataloader:batch_size_per_gpu=8"
+    # "train:optim_g:lr=1e-4"
+    # "train:optim_dc:lr=5e-5"
+    # "train:ema_decay=0"
 )
 
 case "${STAGE}" in

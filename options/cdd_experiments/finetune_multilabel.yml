@@ -3,7 +3,7 @@ model_type: SRModel
 scale: 1
 num_gpu: 1
 manual_seed: 0
-classify: true
+classify: false
 datasets:
   train_1:
     name: low
