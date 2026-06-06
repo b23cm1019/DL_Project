@@ -29,107 +29,30 @@ module purge 2>/dev/null || true
 module load python/3.10.pytorch 2>/dev/null || \
     echo "[WARN] Could not load python/3.10.pytorch; proceeding"
 
+hash -r
+
+echo "[INFO] python  = $(command -v python 2>/dev/null || echo not-found)"
+echo "[INFO] python3 = $(command -v python3 2>/dev/null || echo not-found)"
+
 export PYTHONNOUSERSITE=1
 unset PYTHONHOME 2>/dev/null || true
 unset PYTHONPATH 2>/dev/null || true
 
-# GPU_ID="${CUDA_VISIBLE_DEVICES%%,*}"
-
-# GPU_NAME="$(nvidia-smi -i "${GPU_ID}" \
-#     --query-gpu=name \
-#     --format=csv,noheader \
-#     2>/dev/null | head -n1 | tr -d '\r')"
-
-# echo "[INFO] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
-
-# GPU_NAME="${GPU_NAME:-unknown}"
-# GPU_NAME_LC="${GPU_NAME,,}"
-
-# if [[ -z "${GPU_NAME}" || "${GPU_NAME}" == "unknown" ]]; then
-#     echo "[ERROR] Could not detect GPU via nvidia-smi. Is a GPU allocated?"
-#     exit 1
-# fi
-
-# echo "[INFO] Assigned GPU : ${GPU_NAME}"
-# export DCPT_GPU_NAME="${GPU_NAME}"
-
-# if [[ "${GPU_NAME_LC}" == *blackwell* || "${GPU_NAME_LC}" == *"pro 6000"* ]]; then
-#     # ── Blackwell (sm_120) is NOT supported by any available PyTorch build ─────
-#     echo "============================================================"
-#     echo "[WARN] Blackwell GPU detected: ${GPU_NAME}"
-#     echo "[WARN] Blackwell requires compute capability sm_120, which"
-#     echo "       is NOT supported by any available PyTorch build."
-#     echo "[WARN] This job CANNOT run on this GPU."
-#     echo "============================================================"
-
-#     if [[ -n "${SLURM_JOB_ID:-}" ]]; then
-#         MAX_RETRIES=5
-#         # Retry file lives on persistent home filesystem so it survives requeues
-#         mkdir -p "${LOG_ROOT}/slurm"
-#         RETRY_FILE="${LOG_ROOT}/slurm/.blackwell_retry_${SLURM_JOB_ID}"
-
-#         RETRY_COUNT=0
-#         if [[ -f "${RETRY_FILE}" ]]; then
-#             RETRY_COUNT=$(cat "${RETRY_FILE}" 2>/dev/null || echo 0)
-#         fi
-#         RETRY_COUNT=$((RETRY_COUNT + 1))
-
-#         echo "[INFO] ── Auto-requeue status ──"
-#         echo "[INFO] SLURM Job ID  : ${SLURM_JOB_ID}"
-#         echo "[INFO] Retry attempt : ${RETRY_COUNT} / ${MAX_RETRIES}"
-#         echo "[INFO] Retry file    : ${RETRY_FILE}"
-#         echo "[INFO] Timestamp     : $(date '+%Y-%m-%d %H:%M:%S')"
-
-#         if [[ ${RETRY_COUNT} -le ${MAX_RETRIES} ]]; then
-#             echo "${RETRY_COUNT}" > "${RETRY_FILE}"
-#             echo "[INFO] Releasing Blackwell GPU and requeueing job..."
-#             echo "[INFO] Sleeping 15s to let GPU state settle before requeue..."
-#             sleep 15
-#             echo "[INFO] Executing: scontrol requeue ${SLURM_JOB_ID}"
-#             scontrol requeue "${SLURM_JOB_ID}"
-#             # scontrol requeue sends SIGTERM; sleep as a fallback guard
-#             echo "[INFO] Requeue signal sent. Waiting for SLURM to terminate this run..."
-#             sleep 30
-#             # If we somehow reach here, exit cleanly
-#             exit 0
-#         else
-#             echo "============================================================"
-#             echo "[FATAL] Exhausted all ${MAX_RETRIES} requeue attempts."
-#             echo "[FATAL] Every attempt was assigned a Blackwell GPU."
-#             echo "[FATAL] All A6000 GPUs are likely occupied."
-#             echo "[FATAL] Please try again later when A6000 GPUs are free."
-#             echo "============================================================"
-#             rm -f "${RETRY_FILE}"
-#             exit 1
-#         fi
-#     else
-#         echo "[FATAL] Not running under SLURM — cannot auto-requeue."
-#         echo "[FATAL] Please ensure you are on an A6000 GPU."
-#         exit 1
-#     fi
-# else
-#     export DCPT_GPU_CLASS="a6000"
-#     export DCPT_CUDA_FLAVOR="cu118"
-#     export DCPT_EXPECTED_TORCH_CUDA="11.8"
-#     export DCPT_EXPECTED_TORCH_VERSION="2.1.2+cu118"
-#     export DCPT_EXPECTED_TORCHVISION_VERSION="0.16.2+cu118"
-#     export VENV_ROOT="${VENV_BASE}/dl_project"
-#     echo "[INFO] GPU class     : A6000 -> cu118 venv"
-
-#     # Clean up any stale retry file from a previous requeue cycle
-#     if [[ -n "${SLURM_JOB_ID:-}" ]]; then
-#         RETRY_FILE="${LOG_ROOT}/slurm/.blackwell_retry_${SLURM_JOB_ID}"
-#         if [[ -f "${RETRY_FILE}" ]]; then
-#             PAST_RETRIES=$(cat "${RETRY_FILE}" 2>/dev/null || echo "?")
-#             echo "[INFO] A6000 acquired after ${PAST_RETRIES} Blackwell requeue(s). Cleaning up retry file."
-#             rm -f "${RETRY_FILE}"
-#         fi
-#     fi
-# fi
-
 echo "[INFO] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
 
-GPU_NAME="$(python3 - <<'PY'
+# GPU_NAME="$(python3 - <<'PY'
+# import torch
+
+# if torch.cuda.is_available():
+#     print(torch.cuda.get_device_name(0))
+# else:
+#     print("unknown")
+# PY
+# )"
+
+if command -v python3 >/dev/null 2>&1; then
+
+    GPU_NAME="$(python3 - <<'PY'
 import torch
 
 if torch.cuda.is_available():
@@ -138,6 +61,14 @@ else:
     print("unknown")
 PY
 )"
+
+else
+
+    echo "[ERROR] python3 not available after module load."
+    module list 2>&1 || true
+    exit 1
+
+fi
 
 GPU_NAME="${GPU_NAME:-unknown}"
 GPU_NAME_LC="${GPU_NAME,,}"
@@ -186,6 +117,8 @@ if [[ ! -f "${VENV_ROOT}/bin/activate" ]]; then
 fi
 
 source "${VENV_ROOT}/bin/activate"
+echo "[INFO] activated python: $(which python)"
+echo "[INFO] activated pip   : $(which pip)"
 export PATH="${VENV_ROOT}/bin:${PATH}"
 
 PTH_FILE="${VENV_ROOT}/lib/python3.10/site-packages/dcpt_project.pth"
@@ -194,7 +127,7 @@ if [[ ! -f "${PTH_FILE}" ]]; then
     echo "${PROJECT_ROOT}" > "${PTH_FILE}"
 fi
 
-python3 "${VALIDATOR}" \
+python "${VALIDATOR}" \
     --project-root "${PROJECT_ROOT}" \
     --venv-root "${VENV_ROOT}" \
     --data-root "${DCPT_DATA_ROOT}" \
