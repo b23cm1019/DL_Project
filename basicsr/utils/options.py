@@ -232,12 +232,6 @@ def parse_options(root_path, is_train=True):
         opt["path"]["log"] = results_root
         opt["path"]["visualization"] = osp.join(results_root, "visualization")
 
-    print("DEBUG optim_g lr =", opt["train"]["optim_g"]["lr"],
-      type(opt["train"]["optim_g"]["lr"]))
-
-    print("DEBUG optim_dc lr =", opt["train"]["optim_dc"]["lr"],
-        type(opt["train"]["optim_dc"]["lr"]))
-    
     return opt, args
 
 
