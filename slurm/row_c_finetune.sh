@@ -3,13 +3,13 @@
 #SBATCH --partition=phd
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
 #SBATCH --nodelist=cn07
 #SBATCH --output=/csehome/p24cs0203/krish/logs/slurm/row_c_finetune_%j.out
 #SBATCH --error=/csehome/p24cs0203/krish/logs/slurm/row_c_finetune_%j.err
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 
 set -euo pipefail
 mkdir -p /csehome/p24cs0203/krish/logs/slurm
