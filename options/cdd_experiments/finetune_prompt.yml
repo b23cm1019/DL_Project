@@ -265,6 +265,12 @@ network_dc:
   - 512
   num_classes: 4
 path:
+  experiments_root: /scratch/p24cs0203/krish/outputs/Row_D_Prompt_Finetune_CDD11
+  models: /scratch/p24cs0203/krish/checkpoints/Row_D_Prompt_Finetune_CDD11
+  training_states: /scratch/p24cs0203/krish/training_states/Row_D_Prompt_Finetune_CDD11
+  log: /scratch/p24cs0203/krish/outputs/Row_D_Prompt_Finetune_CDD11
+  visualization: /scratch/p24cs0203/krish/outputs/Row_D_Prompt_Finetune_CDD11/visualization
+  tb_logger: /scratch/p24cs0203/krish/tb_logger/Row_D_Prompt_Finetune_CDD11
   pretrain_network_g: experiments/Row_C_MultiLabel_Pretrain_CDD11/models/net_g_latest.pth
   strict_load_g: false
   pretrain_network_dc: experiments/Row_C_MultiLabel_Pretrain_CDD11/models/net_dc_latest.pth
