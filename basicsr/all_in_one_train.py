@@ -29,6 +29,7 @@ from basicsr.utils import (
     MessageLogger,
     check_resume,
     check_resume_all_in_one,
+    ensure_exp_dirs,
     get_env_info,
     get_root_logger,
     get_time_str,
@@ -207,6 +208,8 @@ def train_pipeline(root_path):
             and opt["rank"] == 0
         ):
             mkdir_and_rename(opt["path"]["tb_logger"])
+    else:
+        ensure_exp_dirs(opt)
 
     # copy the yml file to the experiment root
     copy_opt_file(args.opt, opt["path"]["experiments_root"])

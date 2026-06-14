@@ -58,6 +58,34 @@ def make_exp_dirs(opt):
             os.makedirs(path, exist_ok=True)
 
 
+@master_only
+def ensure_exp_dirs(opt):
+    """Ensure experiment/result directories exist without renaming them.
+
+    This is used for resume flows where artifacts may move to a new location
+    and we must not archive an existing run directory.
+    """
+    path_opt = opt["path"].copy()
+    if opt["is_train"]:
+        root = path_opt.pop("experiments_root", None)
+    else:
+        root = path_opt.pop("results_root", None)
+
+    if root:
+        os.makedirs(root, exist_ok=True)
+
+    for key, path in path_opt.items():
+        if (
+            ("strict_load" in key)
+            or ("pretrain_network" in key)
+            or ("resume" in key)
+            or ("param_key" in key)
+        ):
+            continue
+        else:
+            os.makedirs(path, exist_ok=True)
+
+
 def scandir(dir_path, suffix=None, recursive=False, full_path=False):
     """Scan a directory to find the interested files.
 

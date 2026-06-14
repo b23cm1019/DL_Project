@@ -14,6 +14,7 @@ from .logger import (
 from .misc import (
     check_resume,
     check_resume_all_in_one,
+    ensure_exp_dirs,
     get_time_str,
     make_exp_dirs,
     mkdir_and_rename,
@@ -50,6 +51,7 @@ __all__ = [
     "get_time_str",
     "mkdir_and_rename",
     "make_exp_dirs",
+    "ensure_exp_dirs",
     "scandir",
     "check_resume",
     "check_resume_all_in_one",
