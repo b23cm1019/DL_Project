@@ -13,6 +13,7 @@
 #SBATCH --time=24:00:00
 
 set -euo pipefail
+export MASTER_PORT=29500
 mkdir -p /csehome/p24cs0203/krish/logs/slurm
 PROJECT_ROOT="/csehome/p24cs0203/krish/projects/DL_Project"
 cd "${PROJECT_ROOT}"
