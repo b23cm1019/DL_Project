@@ -9,7 +9,7 @@
 #SBATCH --nodelist=cn07
 #SBATCH --output=/csehome/p24cs0203/krish/logs/slurm/row_d_finetune_resume_%j.out
 #SBATCH --error=/csehome/p24cs0203/krish/logs/slurm/row_d_finetune_resume_%j.err
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 
 set -euo pipefail
 export MASTER_PORT=29503
