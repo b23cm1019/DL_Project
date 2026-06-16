@@ -119,7 +119,10 @@ network_g:
   - 1
   window_size: 16
 path:
-  pretrain_network_g: experiments/Row_C_MultiLabel_Finetune_CDD11/models/net_g_latest.pth
+  results_root: /scratch/p24cs0203/krish/results/Test_Row_C
+  log: /scratch/p24cs0203/krish/results/Test_Row_C
+  visualization: /scratch/p24cs0203/krish/results/Test_Row_C/visualization
+  pretrain_network_g: /scratch/p24cs0203/krish/checkpoints/Row_C_MultiLabel_Finetune_CDD11/net_g_latest.pth
   param_key_g: params_ema
   strict_load_g: true
 val:
