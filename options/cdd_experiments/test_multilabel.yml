@@ -126,7 +126,8 @@ path:
   param_key_g: params_ema
   strict_load_g: true
 val:
-  save_img: true
+  save_img: false
+  suffix: null
   metrics:
     psnr:
       type: calculate_psnr
