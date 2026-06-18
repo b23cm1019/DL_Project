@@ -120,13 +120,17 @@ network_g:
   window_size: 16
   prompt_dim: 4
 path:
-  pretrain_network_g: experiments/Row_D_Prompt_Finetune_CDD11/models/net_g_latest.pth
+  results_root: /scratch/p24cs0203/krish/results/Test_Row_D
+  log: /scratch/p24cs0203/krish/results/Test_Row_D
+  visualization: /scratch/p24cs0203/krish/results/Test_Row_D/visualization
+  pretrain_network_g: /scratch/p24cs0203/krish/checkpoints/Row_D_Prompt_Finetune_CDD11/net_g_latest.pth
   param_key_g: params_ema
   strict_load_g: true
   pretrain_network_dc: experiments/Row_C_MultiLabel_Pretrain_CDD11/models/net_dc_latest.pth
   strict_load_dc: true
 val:
-  save_img: true
+  save_img: false
+  suffix: null
   metrics:
     psnr:
       type: calculate_psnr
