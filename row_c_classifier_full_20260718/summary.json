@@ -1,0 +1,187 @@
+{
+  "opt": "/csehome/p24cs0203/krish/projects/DL_Project/options/cdd_experiments/pretrain_multilabel.yml",
+  "encoder_path": "experiments/Row_C_MultiLabel_Pretrain_CDD11/models/net_g_latest.pth",
+  "classifier_path": "experiments/Row_C_MultiLabel_Pretrain_CDD11/models/net_dc_latest.pth",
+  "data_root": "/scratch/p24cs0203/krish/datasets/CDD11/test",
+  "output_dir": "/scratch/p24cs0203/krish/analysis/row_c_classifier_full_20260718",
+  "threshold": 0.5,
+  "num_settings": 11,
+  "num_images": 2200,
+  "overall_exact_match_acc": 0.98,
+  "overall_cardinality_acc": 0.98,
+  "micro_precision": 0.9954909819639278,
+  "micro_recall": 0.9935,
+  "micro_f1": 0.9944944944944946,
+  "macro_precision": 0.9962276286353468,
+  "macro_recall": 0.9945833333333334,
+  "macro_f1": 0.9954027313266444,
+  "settings": [
+    {
+      "setting": "low",
+      "num_images": 200,
+      "exact_match_acc": 1.0,
+      "cardinality_acc": 1.0,
+      "mean_prob_low": 0.9999938011169434,
+      "mean_prob_haze": 0.0020190433133393526,
+      "mean_prob_rain": 0.0002831875463016331,
+      "mean_prob_snow": 0.005962527357041836,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "haze",
+      "num_images": 200,
+      "exact_match_acc": 0.99,
+      "cardinality_acc": 0.99,
+      "mean_prob_low": 0.23968297243118286,
+      "mean_prob_haze": 0.9992231726646423,
+      "mean_prob_rain": 0.0014480313984677196,
+      "mean_prob_snow": 0.017561987042427063,
+      "fp_rate_on_single": 0.01
+    },
+    {
+      "setting": "rain",
+      "num_images": 200,
+      "exact_match_acc": 0.99,
+      "cardinality_acc": 0.99,
+      "mean_prob_low": 0.16903920471668243,
+      "mean_prob_haze": 0.018949739634990692,
+      "mean_prob_rain": 0.9943945407867432,
+      "mean_prob_snow": 0.002930800663307309,
+      "fp_rate_on_single": 0.01
+    },
+    {
+      "setting": "snow",
+      "num_images": 200,
+      "exact_match_acc": 1.0,
+      "cardinality_acc": 1.0,
+      "mean_prob_low": 0.15980879962444305,
+      "mean_prob_haze": 0.011343084275722504,
+      "mean_prob_rain": 0.00013286522880662233,
+      "mean_prob_snow": 0.9997732043266296,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "low_haze",
+      "num_images": 200,
+      "exact_match_acc": 0.98,
+      "cardinality_acc": 0.98,
+      "mean_prob_low": 0.9797848463058472,
+      "mean_prob_haze": 0.9994948506355286,
+      "mean_prob_rain": 0.0006190818385221064,
+      "mean_prob_snow": 0.005205115303397179,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "low_rain",
+      "num_images": 200,
+      "exact_match_acc": 0.975,
+      "cardinality_acc": 0.975,
+      "mean_prob_low": 0.9805624485015869,
+      "mean_prob_haze": 0.004777700174599886,
+      "mean_prob_rain": 0.9981600046157837,
+      "mean_prob_snow": 0.00017073244089260697,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "low_snow",
+      "num_images": 200,
+      "exact_match_acc": 0.97,
+      "cardinality_acc": 0.97,
+      "mean_prob_low": 0.9774706959724426,
+      "mean_prob_haze": 0.0023381223436444998,
+      "mean_prob_rain": 1.548785985505674e-05,
+      "mean_prob_snow": 0.9998922944068909,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "haze_rain",
+      "num_images": 200,
+      "exact_match_acc": 0.97,
+      "cardinality_acc": 0.97,
+      "mean_prob_low": 0.29627591371536255,
+      "mean_prob_haze": 0.9683453440666199,
+      "mean_prob_rain": 0.9973206520080566,
+      "mean_prob_snow": 0.0002628136135172099,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "haze_snow",
+      "num_images": 200,
+      "exact_match_acc": 0.95,
+      "cardinality_acc": 0.95,
+      "mean_prob_low": 0.26751822233200073,
+      "mean_prob_haze": 0.9847027063369751,
+      "mean_prob_rain": 9.972864063456655e-05,
+      "mean_prob_snow": 0.9980713725090027,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "low_haze_rain",
+      "num_images": 200,
+      "exact_match_acc": 0.98,
+      "cardinality_acc": 0.98,
+      "mean_prob_low": 0.981812059879303,
+      "mean_prob_haze": 0.9992234706878662,
+      "mean_prob_rain": 0.9961011409759521,
+      "mean_prob_snow": 0.00010510168795008212,
+      "fp_rate_on_single": 0.0
+    },
+    {
+      "setting": "low_haze_snow",
+      "num_images": 200,
+      "exact_match_acc": 0.975,
+      "cardinality_acc": 0.975,
+      "mean_prob_low": 0.9779248237609863,
+      "mean_prob_haze": 0.9986820816993713,
+      "mean_prob_rain": 1.076482112694066e-05,
+      "mean_prob_snow": 0.9998477101325989,
+      "fp_rate_on_single": 0.0
+    }
+  ],
+  "primitive_metrics": [
+    {
+      "primitive": "low",
+      "tp": 1176,
+      "fp": 16,
+      "tn": 984,
+      "fn": 24,
+      "precision": 0.9865771812080537,
+      "recall": 0.98,
+      "f1": 0.9832775919732442,
+      "support": 1200
+    },
+    {
+      "primitive": "haze",
+      "tp": 1198,
+      "fp": 2,
+      "tn": 998,
+      "fn": 2,
+      "precision": 0.9983333333333333,
+      "recall": 0.9983333333333333,
+      "f1": 0.9983333333333333,
+      "support": 1200
+    },
+    {
+      "primitive": "rain",
+      "tp": 800,
+      "fp": 0,
+      "tn": 1400,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 800
+    },
+    {
+      "primitive": "snow",
+      "tp": 800,
+      "fp": 0,
+      "tn": 1400,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 800
+    }
+  ]
+}
