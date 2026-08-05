@@ -99,12 +99,19 @@ Stages:
   row_b_finetune
   row_c_pretrain
   row_c_pretrain_resume
+  row_c_single_pretrain
+  row_c_single_pretrain_resume
+  row_c_mixed_calibration
+  row_c_mixed_calibration_resume
   row_c_finetune
   row_c_finetune_resume
+  row_c_balanced_finetune
+  row_c_balanced_finetune_resume
   row_d_finetune
   row_d_finetune_resume
   test_row_b
   test_row_c
+  test_row_c_balanced
   test_row_d
   sanity_row_c
   sanity_row_d
@@ -206,6 +213,56 @@ case "${STAGE}" in
         "${EXTRA_ARGS[@]}"
     ;;
 
+  row_c_single_pretrain)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Single-Only Pretrain | GPU ${CUDA_VISIBLE_DEVICES} | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/pretrain_multilabel_single.yml \
+        --launcher pytorch \
+        "${SCALE_OVERRIDES[@]}" \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
+  row_c_single_pretrain_resume)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Single-Only Pretrain Resume | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/pretrain_multilabel_single.yml \
+        --launcher pytorch --auto_resume \
+        "${SCALE_OVERRIDES[@]}" \
+        --force_yml val:val_freq=25000 logger:save_checkpoint_freq=25000 \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
+  row_c_mixed_calibration)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Mixed Calibration | GPU ${CUDA_VISIBLE_DEVICES} | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/pretrain_multilabel_mixed_calibration.yml \
+        --launcher pytorch \
+        "${SCALE_OVERRIDES[@]}" \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
+  row_c_mixed_calibration_resume)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Mixed Calibration Resume | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/pretrain_multilabel_mixed_calibration.yml \
+        --launcher pytorch --auto_resume \
+        "${SCALE_OVERRIDES[@]}" \
+        --force_yml val:val_freq=5000 logger:save_checkpoint_freq=5000 \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
   row_c_finetune)
     preflight_import basicsr.all_in_one_train
     preflight_torchvision_cuda
@@ -233,6 +290,32 @@ case "${STAGE}" in
     ;;
 
   # ── Row D (Row C + Prompt Injection) ─────────────────────────────────────────
+  row_c_balanced_finetune)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Balanced Finetune | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/finetune_multilabel_balanced.yml \
+        --launcher pytorch \
+        "${SCALE_OVERRIDES[@]}" \
+        --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
+  row_c_balanced_finetune_resume)
+    preflight_import basicsr.all_in_one_train
+    preflight_torchvision_cuda
+    echo "[INFO] Row C Balanced Finetune Resume | port ${MASTER_PORT}"
+    run_stage torchrun --master-port "${MASTER_PORT}" --nproc_per_node=1 \
+        basicsr/all_in_one_train.py \
+        -opt options/cdd_experiments/finetune_multilabel_balanced.yml \
+        --launcher pytorch --auto_resume \
+        "${SCALE_OVERRIDES[@]}" \
+        --force_yml val:val_freq=500001 logger:save_checkpoint_freq=50000 \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
   row_d_finetune)
     preflight_import basicsr.all_in_one_train
     preflight_torchvision_cuda
@@ -277,6 +360,15 @@ case "${STAGE}" in
     echo "[INFO] Test Row C"
     run_stage python basicsr/test.py \
         -opt options/cdd_experiments/test_multilabel.yml \
+        "${EXTRA_ARGS[@]}"
+    ;;
+
+  test_row_c_balanced)
+    preflight_import basicsr.test
+    preflight_torchvision_cuda
+    echo "[INFO] Test Row C Balanced"
+    run_stage python basicsr/test.py \
+        -opt options/cdd_experiments/test_multilabel_balanced.yml \
         "${EXTRA_ARGS[@]}"
     ;;
 
