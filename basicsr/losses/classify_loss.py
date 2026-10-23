@@ -163,3 +163,16 @@ class MultiLabelBCELoss(nn.Module):
         # Convert integer labels to multi-hot vectors
         multi_hot = self.label_map_tensor[y.long()]  # (batch_size, num_primitives)
         return self.bce_loss(x, multi_hot)
+
+
+@LOSS_REGISTRY.register()
+class TypePresenceBCELoss(nn.Module):
+    """Binary loss for Stage 0a labels already represented as multi-hot vectors."""
+
+    def __init__(self, pos_weight=None):
+        super().__init__()
+        weight = None if pos_weight is None else torch.tensor(pos_weight, dtype=torch.float32)
+        self.register_buffer("pos_weight", weight)
+
+    def forward(self, logits: Tensor, labels: Tensor) -> Tensor:
+        return F.binary_cross_entropy_with_logits(logits, labels, pos_weight=self.pos_weight)

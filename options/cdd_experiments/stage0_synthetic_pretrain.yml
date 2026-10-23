@@ -1,0 +1,57 @@
+name: Stage0_D_SyntheticSeverity
+model_type: Stage0UnifiedModel
+num_gpu: 1
+manual_seed: 0
+classify: true
+datasets:
+  train:
+    name: synthetic_train
+    type: Stage0UnifiedDataset
+    mode: synthetic
+    manifest: /scratch/p24cs0203/krish/stage0_synthetic/manifests/train.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+    use_hflip: true
+    use_rot: true
+  val:
+    name: synthetic_val
+    type: Stage0UnifiedDataset
+    mode: synthetic
+    manifest: /scratch/p24cs0203/krish/stage0_synthetic/manifests/val.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 64
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 64
+  pin_memory: true
+network_g:
+  type: OrdinalDegradationExtractor
+  num_types: 4
+  num_bins: 4
+  widths: [64, 128, 256, 384]
+path:
+  experiments_root: /scratch/p24cs0203/krish/outputs/Stage0_D_SyntheticSeverity
+  models: /scratch/p24cs0203/krish/checkpoints/Stage0_D_SyntheticSeverity
+  training_states: /scratch/p24cs0203/krish/training_states/Stage0_D_SyntheticSeverity
+  log: /scratch/p24cs0203/krish/outputs/Stage0_D_SyntheticSeverity
+  visualization: /scratch/p24cs0203/krish/outputs/Stage0_D_SyntheticSeverity/visualization
+  tb_logger: /scratch/p24cs0203/krish/tb_logger/Stage0_D_SyntheticSeverity
+  pretrain_network_g: null
+  strict_load_g: false
+train:
+  optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0.05}
+  scheduler: {type: CosineAnnealingRestartLR, periods: [100000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 100000
+  warmup_iter: -1
+  severity_loss_weight: 1.0
+  type_loss_weight: 0.0
+val: {val_freq: 10000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 10000, use_tb_logger: true, wandb: {project: null}}

@@ -1,0 +1,63 @@
+name: Stage0_B_MixedSeverityAndCDDType
+model_type: Stage0UnifiedModel
+num_gpu: 1
+manual_seed: 0
+classify: true
+datasets:
+  train_synthetic:
+    name: synthetic_train
+    type: Stage0UnifiedDataset
+    mode: synthetic
+    manifest: /scratch/p24cs0203/krish/stage0_synthetic/manifests/train.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+    use_hflip: true
+    use_rot: true
+  train_cdd:
+    name: cdd11_train
+    type: Stage0UnifiedDataset
+    mode: cdd11
+    dataroot_lq: /scratch/p24cs0203/krish/datasets/CDD11/train/CDD-11_train
+    categories: [clear, low, haze, rain, snow, low_haze, low_rain, low_snow, haze_rain, haze_snow, low_haze_rain, low_haze_snow]
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+    use_hflip: true
+    use_rot: true
+    scene_split_manifest: /scratch/p24cs0203/krish/stage0_cdd_split.json
+  val_synthetic:
+    name: synthetic_val
+    type: Stage0UnifiedDataset
+    mode: synthetic
+    manifest: /scratch/p24cs0203/krish/stage0_synthetic/manifests/val.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+  val_cdd:
+    name: cdd11_val
+    type: Stage0UnifiedDataset
+    mode: cdd11
+    dataroot_lq: /scratch/p24cs0203/krish/datasets/CDD11/train/CDD-11_train
+    categories: [clear, low, haze, rain, snow, low_haze, low_rain, low_snow, haze_rain, haze_snow, low_haze_rain, low_haze_snow]
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+    scene_split_manifest: /scratch/p24cs0203/krish/stage0_cdd_split.json
+dataloader: {phase: train, use_shuffle: true, num_worker_per_gpu: 8, batch_size_per_gpu: 64, pin_memory: true}
+dataloader_val: {phase: val, use_shuffle: false, num_worker_per_gpu: 4, batch_size_per_gpu: 64, pin_memory: true}
+network_g: {type: OrdinalDegradationExtractor, num_types: 4, num_bins: 4, widths: [64, 128, 256, 384]}
+path:
+  experiments_root: /scratch/p24cs0203/krish/outputs/Stage0_B_MixedSeverityAndCDDType
+  models: /scratch/p24cs0203/krish/checkpoints/Stage0_B_MixedSeverityAndCDDType
+  training_states: /scratch/p24cs0203/krish/training_states/Stage0_B_MixedSeverityAndCDDType
+  log: /scratch/p24cs0203/krish/outputs/Stage0_B_MixedSeverityAndCDDType
+  visualization: /scratch/p24cs0203/krish/outputs/Stage0_B_MixedSeverityAndCDDType/visualization
+  tb_logger: /scratch/p24cs0203/krish/tb_logger/Stage0_B_MixedSeverityAndCDDType
+  pretrain_network_g: /scratch/p24cs0203/krish/checkpoints/Stage0_D_SyntheticSeverity/net_g_latest.pth
+  strict_load_g: false
+train:
+  optim_g: {type: AdamW, lr: 5.0e-5, weight_decay: 0.01}
+  scheduler: {type: CosineAnnealingRestartLR, periods: [50000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 50000
+  warmup_iter: -1
+  severity_loss_weight: 1.0
+  type_loss_weight: 0.5
+val: {val_freq: 10000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 10000, use_tb_logger: true, wandb: {project: null}}

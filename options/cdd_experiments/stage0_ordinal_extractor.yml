@@ -1,0 +1,75 @@
+name: Stage0_OrdinalExtractor
+model_type: OrdinalExtractorModel
+num_gpu: 1
+manual_seed: 0
+classify: true
+datasets:
+  train:
+    name: stage0_train
+    type: OrdinalExtractorDataset
+    # Create these JSONL manifests before launch; each record needs image_path
+    # and severity_bins for [low, haze, rain, snow].
+    manifest: /scratch/p24cs0203/krish/manifests/stage0_train.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+    use_hflip: true
+    use_rot: true
+  val:
+    name: stage0_val
+    type: OrdinalExtractorDataset
+    manifest: /scratch/p24cs0203/krish/manifests/stage0_val.jsonl
+    degradation_types: [low, haze, rain, snow]
+    crop_size: 224
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 64
+  dataset_enlarge_ratio: 1
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 64
+  pin_memory: true
+network_g:
+  type: OrdinalDegradationExtractor
+  num_types: 4
+  num_bins: 4
+  widths: [64, 128, 256, 384]
+path:
+  experiments_root: /scratch/p24cs0203/krish/outputs/Stage0_OrdinalExtractor
+  models: /scratch/p24cs0203/krish/checkpoints/Stage0_OrdinalExtractor
+  training_states: /scratch/p24cs0203/krish/training_states/Stage0_OrdinalExtractor
+  log: /scratch/p24cs0203/krish/outputs/Stage0_OrdinalExtractor
+  visualization: /scratch/p24cs0203/krish/outputs/Stage0_OrdinalExtractor/visualization
+  tb_logger: /scratch/p24cs0203/krish/tb_logger/Stage0_OrdinalExtractor
+  pretrain_network_g: null
+  resume_state: null
+train:
+  optim_g:
+    type: AdamW
+    lr: 3.0e-4
+    weight_decay: 0.05
+  scheduler:
+    type: CosineAnnealingRestartLR
+    periods: [100000]
+    restart_weights: [1]
+    eta_min: 1.0e-6
+  total_iter: 100000
+  warmup_iter: -1
+  classify_opt:
+    type: OrdinalFocalCrossEntropyLoss
+    gamma: 2.0
+    # Replace null with four inverse-frequency values after manifest validation.
+    class_weights: null
+val:
+  val_freq: 10000
+  save_img: false
+logger:
+  print_freq: 100
+  save_checkpoint_freq: 10000
+  use_tb_logger: true
+  wandb:
+    project: null

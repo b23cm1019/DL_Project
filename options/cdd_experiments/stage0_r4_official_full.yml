@@ -1,0 +1,80 @@
+name: Stage0_R4_official_full_improved
+model_type: PrecomputedConditionedTrainModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+classify: false
+datasets:
+  train:
+    name: cdd11_official_train
+    type: ConditionedRestorationDataset
+    phase: train
+    batch_size_per_gpu: 8
+    num_worker_per_gpu: 8
+    manifest: /scratch/p24cs0203/krish/stage0_official_r4_improved/manifests/train_predicted_severity.jsonl
+    condition_mode: direct
+    condition_dim: 16
+    gt_size: 128
+    use_hflip: true
+    use_rot: true
+  val:
+    name: cdd11_official_val
+    type: ConditionedRestorationDataset
+    phase: val
+    batch_size_per_gpu: 1
+    num_worker_per_gpu: 4
+    manifest: /scratch/p24cs0203/krish/stage0_official_r4_improved/manifests/val_predicted_severity.jsonl
+    condition_mode: direct
+    condition_dim: 16
+    gt_size: 128
+    use_hflip: false
+    use_rot: false
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 8
+  dataset_enlarge_ratio: 1
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 1
+  pin_memory: true
+network_g:
+  type: CLIPFeedbackRefinementNAFNet
+  width: 64
+  enc_blk_nums: [1, 1, 1, 28]
+  middle_blk_num: 1
+  dec_blk_nums: [1, 1, 1, 1]
+  window_size: 16
+  feedback_dim: 16
+  adapter_dim: 128
+  freeze_backbone: false
+path:
+  experiments_root: /scratch/p24cs0203/krish/outputs/Stage0_R4_official_full_improved
+  models: /scratch/p24cs0203/krish/checkpoints/Stage0_R4_official_full_improved
+  training_states: /scratch/p24cs0203/krish/training_states/Stage0_R4_official_full_improved
+  log: /scratch/p24cs0203/krish/logs/Stage0_R4_official_full_improved
+  visualization: /scratch/p24cs0203/krish/outputs/Stage0_R4_official_full_improved/visualization
+  tb_logger: /scratch/p24cs0203/krish/tb_logger/Stage0_R4_official_full_improved
+  pretrain_network_g: /scratch/p24cs0203/krish/checkpoints/Row_C_MultiLabel_Finetune_CDD11/net_g_latest.pth
+  param_key_g: params_ema
+  strict_load_g: false
+train:
+  optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0.0}
+  # DCPT-style cosine horizon. The first job stops at 100k, but the LR
+  # trajectory remains valid when the same run is resumed to 250k/500k/750k.
+  scheduler: {type: CosineAnnealingRestartLR, periods: [750000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 100000
+  warmup_iter: -1
+  pixel_opt: {type: L1Loss, loss_weight: 1.0, reduction: mean}
+val:
+  val_freq: 10000
+  save_img: false
+logger:
+  print_freq: 100
+  save_checkpoint_freq: 10000
+  use_tb_logger: true
+  wandb: {project: null}

@@ -1,0 +1,5 @@
+# Arguments are supplied by slurm/evaluate_clip_feedback_refinement.sh.
+manifest: /scratch/p24cs0203/krish/refinement_poc/manifests/val_clip.jsonl
+m2_checkpoint: /scratch/p24cs0203/krish/checkpoints/CLIP_Feedback_Refinement_RowC/net_g_50000.pth
+rowc_checkpoint: /scratch/p24cs0203/krish/checkpoints/Row_C_MultiLabel_Finetune_CDD11/net_g_latest.pth
+output: /scratch/p24cs0203/krish/results/CLIP_Feedback_Refinement_RowC
