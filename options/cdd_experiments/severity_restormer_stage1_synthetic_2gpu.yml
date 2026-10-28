@@ -1,0 +1,90 @@
+# Proposed method with a standard Restormer restoration backbone.
+# Two DDP ranks x 16 patches preserve the NAFNet arm's global B=32 exposure.
+name: SeverityRestormer_Stage1_LSDIR80k
+model_type: SeverityAwareDCPTPretrainModel
+scale: 1
+num_gpu: 2
+manual_seed: 0
+classify: false
+
+datasets:
+  train:
+    name: synthetic_severity_train
+    type: SeverityDCPTPairedDataset
+    source: synthetic
+    phase: train
+    manifest: /scratch/p26cs0003/krish/severity_cdd11_lsdir_outdoor_v1/data/manifests/train.jsonl
+    degradation_types: [low, haze, rain, snow]
+    gt_size: 128
+    use_hflip: true
+    use_rot: true
+  val:
+    name: synthetic_severity_val
+    type: SeverityDCPTPairedDataset
+    source: synthetic
+    phase: val
+    manifest: /scratch/p26cs0003/krish/severity_cdd11_lsdir_outdoor_v1/data/manifests/val.jsonl
+    degradation_types: [low, haze, rain, snow]
+
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 16
+  dataset_enlarge_ratio: 1
+  sampler_type: composition_balanced
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 1
+  pin_memory: true
+
+# This is the standard Restormer configuration used by the Restormer experts
+# in the official UniRestorer clone.  The extractor observes unconditioned
+# encoder levels [48,96,192] and latent level 384.
+network_g:
+  type: FeatureTapRestormer
+  inp_channels: 3
+  out_channels: 3
+  dim: 48
+  num_blocks: [4, 6, 6, 8]
+  num_refinement_blocks: 4
+  heads: [1, 2, 4, 8]
+  ffn_expansion_factor: 2.66
+  bias: false
+  LayerNorm_type: WithBias
+  dual_pixel_task: false
+  scale: 1
+  window_size: 8
+network_extractor:
+  type: FeatureSeverityExtractor
+  feature_dims: [48, 96, 192]
+  middle_dim: 384
+  hidden_dim: 256
+  num_types: 4
+  num_bins: 4
+
+path:
+  experiments_root: /scratch/p26cs0003/krish/experiments/SeverityRestormer_Stage1_LSDIR80k
+  pretrain_network_g: null
+  pretrain_network_extractor: null
+  strict_load_g: true
+  strict_load_extractor: true
+  resume_state: null
+
+train:
+  # Same global batch, objectives, LRs, and constant scheduler as proposed-NAFNet Stage 1.
+  optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
+  optim_extractor: {type: AdamW, lr: 1.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
+  scheduler: {type: ConstantLR}
+  total_iter: 100000
+  warmup_iter: -1
+  pixel_opt: {type: L1Loss, loss_weight: 1.0, reduction: mean}
+  identity_loss_weight: 1.0
+  severity_loss_weight: 1.0
+  type_loss_weight: 0.25
+val: {val_freq: 25000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 10000, use_tb_logger: true, wandb: {project: null}}
+dist_params: {backend: nccl, port: 29631}

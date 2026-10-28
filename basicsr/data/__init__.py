@@ -48,7 +48,7 @@ def build_dataset(dataset_opt):
 
 
 def build_dataloader(
-    dataset, dataset_opt, num_gpu=1, dist=False, sampler=None, seed=None, phase=None
+    dataset, dataset_opt, num_gpu=1, dist=False, sampler=None, batch_sampler=None, seed=None, phase=None
 ):
     """Build dataloader.
 
@@ -75,16 +75,19 @@ def build_dataloader(
             multiplier = 1 if num_gpu == 0 else num_gpu
             batch_size = dataset_opt["batch_size_per_gpu"] * multiplier
             num_workers = dataset_opt["num_worker_per_gpu"] * multiplier
-        dataloader_args = dict(
-            dataset=dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            sampler=sampler,
-            drop_last=True,
-        )
-        if sampler is None and phase == "train":
-            dataloader_args["shuffle"] = True
+        if batch_sampler is not None:
+            dataloader_args = dict(dataset=dataset, batch_sampler=batch_sampler, num_workers=num_workers)
+        else:
+            dataloader_args = dict(
+                dataset=dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers,
+                sampler=sampler,
+                drop_last=True,
+            )
+            if sampler is None and phase == "train":
+                dataloader_args["shuffle"] = True
         dataloader_args["worker_init_fn"] = (
             partial(worker_init_fn, num_workers=num_workers, rank=rank, seed=seed)
             if seed is not None
