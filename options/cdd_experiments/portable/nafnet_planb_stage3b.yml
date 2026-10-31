@@ -1,0 +1,75 @@
+# Plan B (final proposed pipeline), NAFNet, Stage 3b: full fine-tuning.
+# Initialized from Stage 3a (params; EMA from params_ema). Everything trains.
+# Budget: 3a 50k + 3b 700k = 750k updates (= DCPT). DCPT-like LR: 3e-4 cosine -> 1e-6.
+name: SevFull_PlanB_NAFNet_Stage3b
+model_type: SeverityFullFinetuneModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+classify: false
+find_unused_parameters: false
+
+datasets:
+  train:
+    name: cdd11_full_train
+    type: SeverityConditionedPairedDataset
+    manifest: @SHARED_ROOT@/severity_full/manifests/train_full.jsonl
+    gt_size: 128
+    use_hflip: true
+    use_rot: true
+  val:
+    name: cdd11_test_subset
+    type: SeverityConditionedPairedDataset
+    manifest: @SHARED_ROOT@/severity_full/manifests/val_subset.jsonl
+
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 32
+  dataset_enlarge_ratio: 1
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 1
+  pin_memory: true
+
+network_g:
+  type: SeverityConditionedFullNAFNet
+  width: 64
+  enc_blk_nums: [1, 1, 1, 28]
+  middle_blk_num: 1
+  dec_blk_nums: [1, 1, 1, 1]
+  window_size: 16
+  num_types: 4
+  num_bins: 4
+  adapter_dim: 128
+  condition_mode: full
+  use_gate: true
+  use_calibrator: true
+
+path:
+  experiments_root: @OUT_ROOT@/experiments/SevFull_PlanB_NAFNet_Stage3b
+  pretrain_network_g: @OUT_ROOT@/experiments/SevFull_PlanB_NAFNet_Stage3a/models/net_g_50000.pth
+  param_key_g: params
+  strict_load_g: true
+  resume_state: null
+
+grad_clip: 0.01
+train:
+  ema_decay: 0.999
+  optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
+  condition_lr_mult: 1.0    # FiLM already aligned in 3a
+  encoder_lr_mult: 1.0      # set 0.5 if the first few k iterations spike
+  scheduler: {type: CosineAnnealingRestartLR, periods: [700000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 700000
+  warmup_iter: 5000         # protects the 3a-aligned decoder when the trunk is unfrozen
+  fft_loss_weight: 1.0
+  kl_loss_weight: 0.01
+  condition_dropout: 0.1
+  condition_dropout_warmup: 0
+val: {val_freq: 25000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
+dist_params: {backend: nccl, port: 29652}

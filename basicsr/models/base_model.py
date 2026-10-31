@@ -142,6 +142,10 @@ class BaseModel:
         """Set up schedulers."""
         train_opt = self.opt["train"]
         scheduler_type = train_opt["scheduler"].pop("type")
+        if scheduler_type == "ConstantLR":
+            # Deliberately install no scheduler. This keeps the configured
+            # optimizer LR exactly fixed throughout training and on resume.
+            return
         if scheduler_type in ["MultiStepLR", "MultiStepRestartLR"]:
             for optimizer in self.optimizers:
                 self.schedulers.append(

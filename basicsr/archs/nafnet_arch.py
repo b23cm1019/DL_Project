@@ -258,7 +258,7 @@ class NAFNetBaseline(nn.Module):
                 nn.Sequential(*[NAFBlock(chan) for _ in range(num)]),
             )
 
-    def forward(self, inp, prompt=None, hook=False):
+    def forward(self, inp, prompt=None, hook=False, return_degradation_features=False):
         # B, C, H, W = inp.shape
         x = self.intro(inp)
 
@@ -270,6 +270,10 @@ class NAFNetBaseline(nn.Module):
             x = down(x)
 
         x = self.middle_blks(x)
+
+        # Use forward for feature extraction so DDP tracks this branch.
+        if return_degradation_features:
+            return encs, x
         
         if self.prompt_proj is not None and prompt is not None:
             p = self.prompt_proj(prompt).unsqueeze(-1).unsqueeze(-1)
@@ -287,6 +291,24 @@ class NAFNetBaseline(nn.Module):
             x = x + inp
 
             return x
+
+    def extract_degradation_features(self, inp):
+        """Return the unconditioned encoder and middle features for DCPT heads.
+
+        This deliberately stops before the decoder.  A degradation head attached
+        here observes the same representation that is transferred to restoration,
+        rather than a separate raw-image encoder or decoder-side features.
+        The caller controls gradient tracking: Stage 1/2 train through these
+        features; Stage 3 obtains them under ``torch.no_grad()``.
+        """
+        x = self.intro(inp)
+        encoder_features = []
+        for encoder, down in zip(self.encoders, self.downs):
+            x = encoder(x)
+            encoder_features.append(x)
+            x = down(x)
+        middle_feature = self.middle_blks(x)
+        return encoder_features, middle_feature
 
 
 @ARCH_REGISTRY.register()

@@ -1,6 +1,7 @@
 import datetime
 import logging
 import math
+from copy import deepcopy
 
 # isort: off
 import sys
@@ -140,17 +141,25 @@ def create_val_dataloaders(opt, logger):
     val_loaders = []
     for phase, dataset_opt in opt["datasets"].items():
         if phase.split("_")[0] == "val":
+            # Allow a single shared `dataloader_val` policy. Individual
+            # `val_*` entries still override it when they deliberately carry
+            # a loader field. This mirrors the combined validation path above
+            # and avoids requiring batch/worker fields to be duplicated in
+            # every CDD-11 validation setting.
+            loader_opt = deepcopy(opt.get("dataloader_val", {}))
+            loader_opt.update(dataset_opt)
+            loader_opt.setdefault("phase", "val")
             val_set = build_dataset(dataset_opt)
             val_loader = build_dataloader(
                 val_set,
-                dataset_opt,
+                loader_opt,
                 num_gpu=opt["num_gpu"],
                 dist=opt["dist"],
                 sampler=None,
                 seed=opt["manual_seed"],
             )
             logger.info(
-                f'Number of val images/folders in {dataset_opt["name"]}: {len(val_set)}'
+                f'Number of val images/folders in {loader_opt["name"]}: {len(val_set)}'
             )
             val_loaders.append(val_loader)
 

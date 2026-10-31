@@ -1,0 +1,79 @@
+# CONTROL for Stage 3b: identical arch, init and budget, but the condition is a learned constant (no per-image severity information).
+# restoration copy.  Warm-started from Stage 3a (the frozen-trunk run at 350k),
+# whose encoder is the untouched Stage-2 trunk.  The frozen analysis copy
+# (Stage-2 trunk + extractor) is applied offline: its full-image logits are
+# cached by scripts/cache_severity_full_conditions.py.
+# Budget: 350k (3a) + 400k (3b) = 750k updates, equal to the DCPT reproduction.
+name: SeverityFull_Stage3b_NoCond
+model_type: SeverityFullFinetuneModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+classify: false
+find_unused_parameters: true
+
+datasets:
+  train:
+    name: cdd11_full_train
+    type: SeverityConditionedPairedDataset
+    manifest: /scratch/p26cs0003/krish/severity_full/manifests/train_full.jsonl
+    gt_size: 128
+    use_hflip: true
+    use_rot: true
+  val:
+    name: cdd11_test_subset
+    type: SeverityConditionedPairedDataset
+    manifest: /scratch/p26cs0003/krish/severity_full/manifests/val_subset.jsonl
+
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 32
+  dataset_enlarge_ratio: 1
+  pin_memory: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 1
+  pin_memory: true
+
+network_g:
+  type: SeverityConditionedFullNAFNet
+  width: 64
+  enc_blk_nums: [1, 1, 1, 28]
+  middle_blk_num: 1
+  dec_blk_nums: [1, 1, 1, 1]
+  window_size: 16
+  num_types: 4
+  num_bins: 4
+  adapter_dim: 128
+  condition_mode: constant   # learned null condition only; no per-image information
+  use_gate: true
+  use_calibrator: true
+  # logit_temperatures: [1.0, 1.0, 1.0, 1.0]   # optional, from condition_report.json
+
+path:
+  experiments_root: /scratch/p26cs0003/krish/experiments/SeverityFull_Stage3b_NoCond
+  pretrain_network_g: /scratch/p26cs0003/krish/experiments/SeverityDCPT_Stage3_CDDRestore/models/net_g_350000.pth
+  param_key_g: params
+  strict_load_g: false
+  resume_state: null
+
+grad_clip: 0.01
+train:
+  ema_decay: 0.999
+  optim_g: {type: AdamW, lr: 2.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
+  condition_lr_mult: 1.0   # FiLM is already trained in 3a; x5 destabilised it (scale ~ -0.95)
+  encoder_lr_mult: 1.0      # set 0.5 if the first few k iterations spike
+  scheduler: {type: CosineAnnealingRestartLR, periods: [400000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 400000
+  warmup_iter: 5000        # linear LR warmup protects the warm-started FiLM equilibrium
+  fft_loss_weight: 1.0     # ortho-normalised FFT: measured 1.0*L_fft = 8-30% of L1 (MoCE-IR 0.1 is unnormalised)
+  kl_loss_weight: 0.01
+  condition_dropout: 0.0
+  condition_dropout_warmup: 0
+val: {val_freq: 25000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
+dist_params: {backend: nccl, port: 29542}
