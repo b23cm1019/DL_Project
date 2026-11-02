@@ -1,0 +1,90 @@
+# Plan B (final proposed pipeline), RESTORMER backbone, single Stage 3: 750k FULL-network updates.
+# Restormer twin of nafnet_planb_full750k.yml: same recipe, only the backbone, the Stage-2 init and
+# the cached-condition manifests change.
+# Starts from the Restormer Stage-2 network (all FiLM zero-init -> the initial network IS the
+# Stage-2 Restormer). No frozen phase. Batch 32, 128x128, all 13,013 CDD-11 images,
+# AdamW 3e-4 cosine 750k -> 1e-6, no warmup, grad clip 0.01, EMA 0.999, L1 loss (+0.01 KL on the
+# 16-param calibrator only).
+# Needs: Restormer Stage 2 finished, then slurm/portable/cache.sh (writes severity_full_restormer/manifests).
+name: SevFull_PlanB_Restormer_Full750k
+model_type: SeverityFullFinetuneModel
+scale: 1
+num_gpu: 1
+manual_seed: 0
+classify: false
+find_unused_parameters: false
+
+datasets:
+  train:
+    name: cdd11_full_train
+    type: SeverityConditionedPairedDataset
+    manifest: @OUT_ROOT@/severity_full_restormer/manifests/train_full.jsonl
+    gt_size: 128
+    use_hflip: true
+    use_rot: true
+  val:
+    name: cdd11_test_subset
+    type: SeverityConditionedPairedDataset
+    manifest: @OUT_ROOT@/severity_full_restormer/manifests/val_subset.jsonl
+
+dataloader:
+  phase: train
+  use_shuffle: true
+  num_worker_per_gpu: 8
+  batch_size_per_gpu: 32
+  dataset_enlarge_ratio: 1
+  pin_memory: true
+  persistent_workers: true
+dataloader_val:
+  phase: val
+  use_shuffle: false
+  num_worker_per_gpu: 4
+  batch_size_per_gpu: 1
+  pin_memory: true
+
+network_g:
+  type: SeverityConditionedFullRestormer
+  inp_channels: 3
+  out_channels: 3
+  dim: 48
+  num_blocks: [4, 6, 6, 8]
+  num_refinement_blocks: 4
+  heads: [1, 2, 4, 8]
+  ffn_expansion_factor: 2.66
+  bias: false
+  LayerNorm_type: WithBias
+  dual_pixel_task: false
+  scale: 1
+  window_size: 8
+  num_types: 4
+  num_bins: 4
+  adapter_dim: 128
+  condition_mode: full
+  use_gate: true
+  use_calibrator: true
+
+path:
+  experiments_root: @OUT_ROOT@/experiments/SevFull_PlanB_Restormer_Full750k
+  # Restormer Stage 2: identical parameter names; new modules start as identity.
+  pretrain_network_g: @OUT_ROOT@/experiments/SeverityRestormer_Stage2_CDDAdapt_1gpu/models/net_g_latest.pth
+  param_key_g: params
+  strict_load_g: false
+  resume_state: null
+
+grad_clip: 0.01
+train:
+  ema_decay: 0.999
+  encoder_prefixes: [patch_embed, encoder_level1, down1_2, encoder_level2, down2_3, encoder_level3, down3_4, latent]
+  optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
+  condition_lr_mult: 1.0
+  encoder_lr_mult: 1.0
+  scheduler: {type: CosineAnnealingRestartLR, periods: [750000], restart_weights: [1], eta_min: 1.0e-6}
+  total_iter: 750000
+  warmup_iter: -1           # as DCPT / NAFNet Plan B
+  fft_loss_weight: 0.0      # L1 only, as DCPT (clean attribution)
+  kl_loss_weight: 0.01
+  condition_dropout: 0.0
+  condition_dropout_warmup: 0
+val: {val_freq: 25000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
+dist_params: {backend: nccl, port: 29663}
