@@ -32,6 +32,10 @@ dataloader:
   batch_size_per_gpu: 32
   dataset_enlarge_ratio: 1
   pin_memory: true
+  # Keep the eight workers alive across 407-iteration epoch boundaries. Without
+  # this, every epoch respawns workers, re-imports timm, and refills prefetch
+  # queues, causing the observed 50-80 second boundary stalls.
+  persistent_workers: true
 dataloader_val:
   phase: val
   use_shuffle: false
@@ -74,6 +78,9 @@ train:
   kl_loss_weight: 0.01
   condition_dropout: 0.0    # maximise in-domain CDD-11 PSNR
   condition_dropout_warmup: 0
-val: {val_freq: 25000, save_img: false}
+# Full validation is for monitoring, not recovery. Running it every 100k avoids
+# repeated multi-minute pauses while 25k checkpoints still protect node-failure
+# recovery.
+val: {val_freq: 100000, save_img: false}
 logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
 dist_params: {backend: nccl, port: 29653}
