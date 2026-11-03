@@ -71,18 +71,28 @@ def create_train_val_dataloader(opt, logger):
     val_loader = build_dataloader(
         val_set, val_opt, num_gpu=opt["num_gpu"], dist=opt["dist"], sampler=None, seed=opt["manual_seed"]
     )
-    num_iter_per_epoch = len(train_sampler) if batch_sampler is not None else math.ceil(
-        len(train_set) * dataset_enlarge_ratio / (dataloader_opt["batch_size_per_gpu"] * opt["world_size"])
-    )
+    accumulation_steps = int(opt["train"].get("accumulation_steps", 1))
+    if accumulation_steps < 1:
+        raise ValueError("train.accumulation_steps must be at least 1")
+    num_micro_batches_per_epoch = len(train_loader)
     total_iters = int(opt["train"]["total_iter"])
-    total_epochs = math.ceil(total_iters / num_iter_per_epoch)
+    total_epochs = math.ceil(
+        total_iters * accumulation_steps / max(num_micro_batches_per_epoch, 1)
+    )
+    effective_batch_size = (
+        dataloader_opt["batch_size_per_gpu"]
+        * opt["world_size"]
+        * accumulation_steps
+    )
     logger.info(
         "Training statistics:"
         f"\n\tNumber of train images: {len(train_set)}"
         f"\n\tSampler: {sampler_type}"
-        f"\n\tBatch size per gpu: {dataloader_opt['batch_size_per_gpu']}"
-        f"\n\tIterations per epoch: {num_iter_per_epoch}"
-        f"\n\tTotal epochs: {total_epochs}; iters: {total_iters}."
+        f"\n\tMicro-batch size per gpu: {dataloader_opt['batch_size_per_gpu']}"
+        f"\n\tGradient accumulation steps: {accumulation_steps}"
+        f"\n\tEffective global batch size: {effective_batch_size}"
+        f"\n\tMicro-batches per epoch: {num_micro_batches_per_epoch}"
+        f"\n\tTotal epochs: {total_epochs}; optimizer updates: {total_iters}."
     )
     logger.info(f"Number of val images/folders: {len(val_set)}")
     return train_set, train_loader, train_sampler, val_loader, total_epochs, total_iters

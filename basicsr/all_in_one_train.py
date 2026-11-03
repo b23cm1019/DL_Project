@@ -107,21 +107,29 @@ def create_train_val_dataloader(opt, logger):
         seed=opt["manual_seed"],
     )
 
-    num_iter_per_epoch = math.ceil(
-        len(train_set)
-        * dataset_enlarge_ratio
-        / (dataloader_opt["batch_size_per_gpu"] * opt["world_size"])
-    )
+    accumulation_steps = int(opt["train"].get("accumulation_steps", 1))
+    if accumulation_steps < 1:
+        raise ValueError("train.accumulation_steps must be at least 1")
+    num_micro_batches_per_epoch = len(train_loader)
     total_iters = int(opt["train"]["total_iter"])
-    total_epochs = math.ceil(total_iters / (num_iter_per_epoch))
+    total_epochs = math.ceil(
+        total_iters * accumulation_steps / max(num_micro_batches_per_epoch, 1)
+    )
+    effective_batch_size = (
+        dataloader_opt["batch_size_per_gpu"]
+        * opt["world_size"]
+        * accumulation_steps
+    )
     logger.info(
         "Training statistics:"
         f"\n\tNumber of train images: {len(train_set)}"
         f"\n\tDataset enlarge ratio: {dataset_enlarge_ratio}"
-        f'\n\tBatch size per gpu: {dataloader_opt["batch_size_per_gpu"]}'
+        f'\n\tMicro-batch size per gpu: {dataloader_opt["batch_size_per_gpu"]}'
         f'\n\tWorld size (gpu number): {opt["world_size"]}'
-        f"\n\tRequire iter number per epoch: {num_iter_per_epoch}"
-        f"\n\tTotal epochs: {total_epochs}; iters: {total_iters}."
+        f"\n\tGradient accumulation steps: {accumulation_steps}"
+        f"\n\tEffective global batch size: {effective_batch_size}"
+        f"\n\tMicro-batches per epoch: {num_micro_batches_per_epoch}"
+        f"\n\tTotal epochs: {total_epochs}; optimizer updates: {total_iters}."
     )
 
     logger.info(f"Number of val images/folders: {len(val_set)}")
@@ -279,8 +287,16 @@ def train_pipeline(root_path):
             f"Wrong prefetch_mode {prefetch_mode}. Supported ones are: None, 'cuda', 'cpu'."
         )
 
+    accumulation_steps = int(opt["train"].get("accumulation_steps", 1))
+    if accumulation_steps < 1:
+        raise ValueError("train.accumulation_steps must be at least 1")
+
     # training
     logger.info(f"Start training from epoch: {start_epoch}, iter: {current_iter}")
+    logger.info(
+        "Gradient accumulation: %d micro-batch(es) per optimizer update.",
+        accumulation_steps,
+    )
     data_timer, iter_timer = AvgTimer(), AvgTimer()
     start_time = time.time()
 
@@ -314,6 +330,7 @@ def train_pipeline(root_path):
         logger.info(f"current gt_size is: {prefetcher.ori_loader.dataset.gt_size}")
         logger.info(f"current batch size is: {prefetcher.ori_loader.batch_size}")
 
+    accumulation_index = 0
     for epoch in range(start_epoch, total_epochs + 1):
         train_sampler.set_epoch(epoch)
         prefetcher.reset()
@@ -340,7 +357,7 @@ def train_pipeline(root_path):
             #                 # dataset_idx=i,
             #             )
 
-            if flag_progressive:
+            if flag_progressive and accumulation_index == 0:
                 # print(current_iter, stage, progressive_iters[stage])
                 if current_iter == progressive_iters[stage]:
                     # print("what's up?")
@@ -371,16 +388,36 @@ def train_pipeline(root_path):
                         f"current batch size is: {prefetcher.ori_loader.batch_size}"
                     )
 
-            current_iter += 1
-            if current_iter > total_iters:
+            next_iter = current_iter + 1
+            if next_iter > total_iters:
                 break
-            # update learning rate
-            model.update_learning_rate(
-                current_iter, warmup_iter=opt["train"].get("warmup_iter", -1)
-            )
+            # Learning-rate schedules and warmup are defined in optimizer
+            # updates, not in memory-saving micro-batches.
+            if accumulation_index == 0:
+                model.update_learning_rate(
+                    next_iter, warmup_iter=opt["train"].get("warmup_iter", -1)
+                )
             # training
             model.feed_data(train_data)
-            model.optimize_parameters(current_iter)
+            if accumulation_steps == 1:
+                # Preserve compatibility with every existing BasicSR model.
+                model.optimize_parameters(next_iter)
+            else:
+                model.optimize_parameters(
+                    next_iter,
+                    accumulation_index=accumulation_index,
+                    accumulation_steps=accumulation_steps,
+                )
+
+            accumulation_index += 1
+            update_complete = accumulation_index == accumulation_steps
+            if not update_complete:
+                data_timer.start()
+                train_data = prefetcher.next()
+                continue
+
+            accumulation_index = 0
+            current_iter = next_iter
             iter_timer.record()
             if current_iter == 1:
                 # reset start time in msg_logger for more accurate eta_time
@@ -393,7 +430,7 @@ def train_pipeline(root_path):
                 log_vars.update(
                     {
                         "time": iter_timer.get_avg_time(),
-                        "data_time": data_timer.get_avg_time(),
+                        "data_time": data_timer.get_avg_time() * accumulation_steps,
                     }
                 )
                 log_vars.update(model.get_current_log())
@@ -426,8 +463,13 @@ def train_pipeline(root_path):
 
             data_timer.start()
             iter_timer.start()
+            if current_iter >= total_iters:
+                break
             train_data = prefetcher.next()
         # end of iter
+
+        if current_iter >= total_iters:
+            break
 
     # end of epoch
 

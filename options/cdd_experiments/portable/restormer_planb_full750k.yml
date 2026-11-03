@@ -2,7 +2,8 @@
 # Restormer twin of nafnet_planb_full750k.yml: same recipe, only the backbone, the Stage-2 init and
 # the cached-condition manifests change.
 # Starts from the Restormer Stage-2 network (all FiLM zero-init -> the initial network IS the
-# Stage-2 Restormer). No frozen phase. Batch 32, 128x128, all 13,013 CDD-11 images,
+# Stage-2 Restormer). No frozen phase. Micro-batch 16 x accumulation 2 = effective
+# batch 32, 128x128, all 13,013 CDD-11 images,
 # AdamW 3e-4 cosine 750k -> 1e-6, no warmup, grad clip 0.01, EMA 0.999, L1 loss (+0.01 KL on the
 # 16-param calibrator only).
 # Needs: Restormer Stage 2 finished, then slurm/portable/cache.sh (writes severity_full_restormer/manifests).
@@ -31,7 +32,7 @@ dataloader:
   phase: train
   use_shuffle: true
   num_worker_per_gpu: 8
-  batch_size_per_gpu: 32
+  batch_size_per_gpu: 16
   dataset_enlarge_ratio: 1
   pin_memory: true
   persistent_workers: true
@@ -73,6 +74,9 @@ path:
 
 grad_clip: 0.01
 train:
+  # `total_iter`, cosine scheduling, EMA, validation and checkpoint frequencies
+  # all remain measured in completed optimizer updates.
+  accumulation_steps: 2
   ema_decay: 0.999
   encoder_prefixes: [patch_embed, encoder_level1, down1_2, encoder_level2, down2_3, encoder_level3, down3_4, latent]
   optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0, betas: [0.9, 0.999]}

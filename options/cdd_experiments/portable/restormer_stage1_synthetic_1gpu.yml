@@ -1,5 +1,6 @@
 # Proposed method with a standard Restormer restoration backbone.
-# ONE GPU, B=32: identical global batch to the NAFNet Stage 1 (severity_dcpt_stage1_synthetic.yml).
+# ONE GPU, micro-B=16 x accumulation 2 = effective B=32: identical
+# optimizer updates and data exposure to the intended NAFNet Stage 1 recipe.
 name: SeverityRestormer_Stage1_LSDIR80k_1gpu
 model_type: SeverityAwareDCPTPretrainModel
 scale: 1
@@ -30,10 +31,13 @@ dataloader:
   phase: train
   use_shuffle: true
   num_worker_per_gpu: 8
-  batch_size_per_gpu: 32
+  batch_size_per_gpu: 16
   dataset_enlarge_ratio: 1
   sampler_type: composition_balanced
   pin_memory: true
+  # Reuse workers across epochs instead of repeatedly importing the full
+  # BasicSR/timm stack and rebuilding the prefetch queue.
+  persistent_workers: true
 dataloader_val:
   phase: val
   use_shuffle: false
@@ -75,6 +79,9 @@ path:
   resume_state: null
 
 train:
+  # Keep the effective batch at 32 without retaining Restormer activations for
+  # all 32 samples at once. `total_iter` counts optimizer updates, not micro-batches.
+  accumulation_steps: 2
   # Same global batch, objectives, LRs, and constant scheduler as proposed-NAFNet Stage 1.
   optim_g: {type: AdamW, lr: 3.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
   optim_extractor: {type: AdamW, lr: 1.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
@@ -85,6 +92,6 @@ train:
   identity_loss_weight: 1.0
   severity_loss_weight: 1.0
   type_loss_weight: 0.25
-val: {val_freq: 25000, save_img: false}
-logger: {print_freq: 100, save_checkpoint_freq: 10000, use_tb_logger: true, wandb: {project: null}}
+val: {val_freq: 50000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
 dist_params: {backend: nccl, port: 29631}

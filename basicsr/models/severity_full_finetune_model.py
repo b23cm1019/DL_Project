@@ -105,39 +105,49 @@ class SeverityFullFinetuneModel(BaseModel):
         self.logits = data["logits"].to(self.device, non_blocking=True)
         self.settings = data.get("setting")
 
-    def optimize_parameters(self, current_iter):
-        self.optimizer_g.zero_grad(set_to_none=True)
-        keep = None
-        if self.condition_dropout > 0:
-            rate = self.condition_dropout
-            if self.condition_dropout_warmup > 0:  # linear ramp from 0
-                rate *= min(1.0, current_iter / self.condition_dropout_warmup)
-            keep = (torch.rand(self.lq.shape[0], device=self.device) >= rate).float()
-        self.output, condition = self.net_g(self.lq, self.logits, condition_keep=keep, return_condition=True)
+    def optimize_parameters(self, current_iter, accumulation_index=0, accumulation_steps=1):
+        if accumulation_index == 0:
+            self.optimizer_g.zero_grad(set_to_none=True)
+        with self.gradient_accumulation_context(
+            [self.net_g], accumulation_index, accumulation_steps
+        ):
+            keep = None
+            if self.condition_dropout > 0:
+                rate = self.condition_dropout
+                if self.condition_dropout_warmup > 0:  # linear ramp from 0
+                    rate *= min(1.0, current_iter / self.condition_dropout_warmup)
+                keep = (torch.rand(self.lq.shape[0], device=self.device) >= rate).float()
+            self.output, condition = self.net_g(
+                self.lq, self.logits, condition_keep=keep, return_condition=True
+            )
 
-        l_pix = F.l1_loss(self.output, self.gt)
-        loss_dict = OrderedDict(l_pix=l_pix)
-        total = l_pix
-        if self.fft_weight > 0:
-            l_fft = fft_amplitude_l1(self.output, self.gt)
-            total = total + self.fft_weight * l_fft
-            loss_dict["l_fft"] = l_fft
-        if condition["p_hat"] is not None:
-            p_hat, q = condition["p_hat"], condition["q"]
-            l_kl = (p_hat * (p_hat.clamp_min(1e-8).log() - q.clamp_min(1e-8).log())).sum(-1).sum(-1).mean()
-            if self.kl_weight > 0:
-                total = total + self.kl_weight * l_kl
-            loss_dict["l_kl"] = l_kl
-        if condition["gate"] is not None:
-            loss_dict["gate"] = condition["gate"].mean().detach()
-        loss_dict["l_total"] = total
-        total.backward()
-        if self.grad_clip:
-            torch.nn.utils.clip_grad_norm_(self.net_g.parameters(), self.grad_clip)
-        self.optimizer_g.step()
-        if self.ema_decay > 0:
-            self.model_ema(decay=self.ema_decay)
-        self.log_dict = self.reduce_loss_dict(loss_dict)
+            l_pix = F.l1_loss(self.output, self.gt)
+            loss_dict = OrderedDict(l_pix=l_pix)
+            total = l_pix
+            if self.fft_weight > 0:
+                l_fft = fft_amplitude_l1(self.output, self.gt)
+                total = total + self.fft_weight * l_fft
+                loss_dict["l_fft"] = l_fft
+            if condition["p_hat"] is not None:
+                p_hat, q = condition["p_hat"], condition["q"]
+                l_kl = (
+                    p_hat
+                    * (p_hat.clamp_min(1e-8).log() - q.clamp_min(1e-8).log())
+                ).sum(-1).sum(-1).mean()
+                if self.kl_weight > 0:
+                    total = total + self.kl_weight * l_kl
+                loss_dict["l_kl"] = l_kl
+            if condition["gate"] is not None:
+                loss_dict["gate"] = condition["gate"].mean().detach()
+            loss_dict["l_total"] = total
+            (total / accumulation_steps).backward()
+        if accumulation_index + 1 == accumulation_steps:
+            if self.grad_clip:
+                torch.nn.utils.clip_grad_norm_(self.net_g.parameters(), self.grad_clip)
+            self.optimizer_g.step()
+            if self.ema_decay > 0:
+                self.model_ema(decay=self.ema_decay)
+        self.accumulate_loss_dict(loss_dict, accumulation_index, accumulation_steps)
 
     # ---------------------------------------------------------------- evaluation
     def _eval_net(self):

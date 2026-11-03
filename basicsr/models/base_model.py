@@ -1,6 +1,7 @@
 import os
 import time
 from collections import OrderedDict
+from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 
 # import apex
@@ -96,6 +97,60 @@ class BaseModel:
 
     def get_current_log(self):
         return self.log_dict
+
+    @staticmethod
+    def _validate_accumulation_step(accumulation_index, accumulation_steps):
+        if accumulation_steps < 1:
+            raise ValueError("accumulation_steps must be at least 1")
+        if not 0 <= accumulation_index < accumulation_steps:
+            raise ValueError(
+                f"accumulation_index must be in [0, {accumulation_steps}); "
+                f"got {accumulation_index}"
+            )
+
+    @contextmanager
+    def gradient_accumulation_context(
+        self, networks, accumulation_index=0, accumulation_steps=1
+    ):
+        """Skip intermediate DDP gradient synchronizations during accumulation.
+
+        ``no_sync`` must cover both forward and backward.  The final micro-step
+        performs the normal DDP synchronization, which also reduces gradients
+        accumulated by the preceding local micro-steps.
+        """
+        self._validate_accumulation_step(accumulation_index, accumulation_steps)
+        synchronize = accumulation_index + 1 == accumulation_steps
+        with ExitStack() as stack:
+            if self.opt.get("dist", False) and not synchronize:
+                for network in networks:
+                    if isinstance(network, DistributedDataParallel):
+                        stack.enter_context(network.no_sync())
+            yield
+
+    def accumulate_loss_dict(
+        self, loss_dict, accumulation_index=0, accumulation_steps=1
+    ):
+        """Average micro-step logs and publish them after an optimizer update."""
+        self._validate_accumulation_step(accumulation_index, accumulation_steps)
+        if accumulation_index == 0:
+            self._accumulated_loss_dict = OrderedDict(
+                (name, value.detach().clone()) for name, value in loss_dict.items()
+            )
+        else:
+            if not hasattr(self, "_accumulated_loss_dict"):
+                raise RuntimeError("Gradient accumulation did not start at index 0")
+            if self._accumulated_loss_dict.keys() != loss_dict.keys():
+                raise RuntimeError("Loss keys changed within one accumulation cycle")
+            for name, value in loss_dict.items():
+                self._accumulated_loss_dict[name].add_(value.detach())
+
+        if accumulation_index + 1 == accumulation_steps:
+            averaged = OrderedDict(
+                (name, value / accumulation_steps)
+                for name, value in self._accumulated_loss_dict.items()
+            )
+            self.log_dict = self.reduce_loss_dict(averaged)
+            del self._accumulated_loss_dict
 
     def model_to_device(self, net, dist=True, find_unused_parameters=None):
         """Model to device. It also warps models with DistributedDataParallel

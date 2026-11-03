@@ -177,28 +177,40 @@ class SeverityAwareDCPTPretrainModel(_SeverityDCPTBase):
         )
         self.optimizers.extend([self.optimizer_g, self.optimizer_extractor])
 
-    def optimize_parameters(self, current_iter):
-        self.optimizer_g.zero_grad()
-        self.optimizer_extractor.zero_grad()
-        # Paper-faithful DCPT identity path: clean image -> clean image.
-        identity_loss = self.cri_pix(self.net_g(self.gt), self.gt)
-        logits = self._severity_logits(self.lq)
-        train = self.opt["train"]
-        severity_loss = self._per_type_ordinal_severity_loss(
-            logits, self.severity_bins, self.has_severity
+    def optimize_parameters(self, current_iter, accumulation_index=0, accumulation_steps=1):
+        if accumulation_index == 0:
+            self.optimizer_g.zero_grad(set_to_none=True)
+            self.optimizer_extractor.zero_grad(set_to_none=True)
+        with self.gradient_accumulation_context(
+            [self.net_g, self.net_extractor], accumulation_index, accumulation_steps
+        ):
+            # Paper-faithful DCPT identity path: clean image -> clean image.
+            identity_loss = self.cri_pix(self.net_g(self.gt), self.gt)
+            logits = self._severity_logits(self.lq)
+            train = self.opt["train"]
+            severity_loss = self._per_type_ordinal_severity_loss(
+                logits, self.severity_bins, self.has_severity
+            )
+            type_loss = self._per_type_balanced_type_loss(logits)
+            total = (
+                train.get("identity_loss_weight", 1.0) * identity_loss
+                + train.get("severity_loss_weight", 1.0) * severity_loss
+                + train.get("type_loss_weight", 0.0) * type_loss
+            )
+            (total / accumulation_steps).backward()
+        if accumulation_index + 1 == accumulation_steps:
+            self.optimizer_g.step()
+            self.optimizer_extractor.step()
+        self.accumulate_loss_dict(
+            OrderedDict(
+                l_identity=identity_loss,
+                l_severity=severity_loss,
+                l_type=type_loss,
+                l_total=total,
+            ),
+            accumulation_index,
+            accumulation_steps,
         )
-        type_loss = self._per_type_balanced_type_loss(logits)
-        total = (
-            train.get("identity_loss_weight", 1.0) * identity_loss
-            + train.get("severity_loss_weight", 1.0) * severity_loss
-            + train.get("type_loss_weight", 0.0) * type_loss
-        )
-        total.backward()
-        self.optimizer_g.step()
-        self.optimizer_extractor.step()
-        self.log_dict = self.reduce_loss_dict(OrderedDict(
-            l_identity=identity_loss, l_severity=severity_loss, l_type=type_loss, l_total=total
-        ))
 
     def save(self, epoch, current_iter):
         self.save_analysis(epoch, current_iter)
@@ -239,29 +251,41 @@ class SeverityExtractorAdaptationModel(_SeverityDCPTBase):
         )
         self.optimizers.extend([self.optimizer_g, self.optimizer_extractor])
 
-    def optimize_parameters(self, current_iter):
-        self.optimizer_g.zero_grad()
-        self.optimizer_extractor.zero_grad()
-        train = self.opt["train"]
-        # Decoder is frozen, but identity gradients preserve the transferable
-        # analysis representation while adapting it to CDD-11 appearance.
-        identity_loss = self.cri_pix(self.net_g(self.gt), self.gt)
-        logits = self._severity_logits(self.lq)
-        replay_loss = self._per_type_ordinal_severity_loss(
-            logits, self.severity_bins, self.has_severity
+    def optimize_parameters(self, current_iter, accumulation_index=0, accumulation_steps=1):
+        if accumulation_index == 0:
+            self.optimizer_g.zero_grad(set_to_none=True)
+            self.optimizer_extractor.zero_grad(set_to_none=True)
+        with self.gradient_accumulation_context(
+            [self.net_g, self.net_extractor], accumulation_index, accumulation_steps
+        ):
+            train = self.opt["train"]
+            # Decoder is frozen, but identity gradients preserve the transferable
+            # analysis representation while adapting it to CDD-11 appearance.
+            identity_loss = self.cri_pix(self.net_g(self.gt), self.gt)
+            logits = self._severity_logits(self.lq)
+            replay_loss = self._per_type_ordinal_severity_loss(
+                logits, self.severity_bins, self.has_severity
+            )
+            type_loss = self._per_type_balanced_type_loss(logits)
+            total = (
+                train.get("identity_loss_weight", 1.0) * identity_loss
+                + train.get("replay_severity_loss_weight", 1.0) * replay_loss
+                + train.get("type_loss_weight", 1.0) * type_loss
+            )
+            (total / accumulation_steps).backward()
+        if accumulation_index + 1 == accumulation_steps:
+            self.optimizer_g.step()
+            self.optimizer_extractor.step()
+        self.accumulate_loss_dict(
+            OrderedDict(
+                l_identity=identity_loss,
+                l_replay_severity=replay_loss,
+                l_type=type_loss,
+                l_total=total,
+            ),
+            accumulation_index,
+            accumulation_steps,
         )
-        type_loss = self._per_type_balanced_type_loss(logits)
-        total = (
-            train.get("identity_loss_weight", 1.0) * identity_loss
-            + train.get("replay_severity_loss_weight", 1.0) * replay_loss
-            + train.get("type_loss_weight", 1.0) * type_loss
-        )
-        total.backward()
-        self.optimizer_g.step()
-        self.optimizer_extractor.step()
-        self.log_dict = self.reduce_loss_dict(OrderedDict(
-            l_identity=identity_loss, l_replay_severity=replay_loss, l_type=type_loss, l_total=total
-        ))
 
     def save(self, epoch, current_iter):
         self.save_analysis(epoch, current_iter)

@@ -1,5 +1,6 @@
 # Stage 2 of the independent Proposed-Restormer arm.
-# ONE GPU, B=16 = 8 CDD + 8 synthetic: identical to the NAFNet Stage 2 (severity_dcpt_stage2_cdd_adapt.yml).
+# ONE GPU, micro-B=8 x accumulation 2 = effective B=16. Each optimizer
+# update still receives 8 CDD + 8 synthetic examples, matching NAFNet Stage 2.
 name: SeverityRestormer_Stage2_CDDAdapt_1gpu
 model_type: SeverityExtractorAdaptationModel
 scale: 1
@@ -50,12 +51,14 @@ dataloader:
   phase: train
   use_shuffle: true
   num_worker_per_gpu: 8
-  batch_size_per_gpu: 16
+  batch_size_per_gpu: 8
   dataset_enlarge_ratio: 1
   sampler_type: fixed_mixed_sources
-  cdd_per_batch: 8
-  synthetic_per_batch: 8
+  cdd_per_batch: 4
+  synthetic_per_batch: 4
   pin_memory: true
+  # Avoid rebuilding eight workers and their prefetch queues at every epoch.
+  persistent_workers: true
 dataloader_val:
   phase: val
   use_shuffle: false
@@ -100,6 +103,8 @@ path:
   resume_state: null
 
 train:
+  # Two 4-CDD/4-synthetic micro-batches form one 8-CDD/8-synthetic update.
+  accumulation_steps: 2
   optim_g: {type: AdamW, lr: 3.0e-5, weight_decay: 0, betas: [0.9, 0.999]}
   optim_extractor: {type: AdamW, lr: 1.0e-4, weight_decay: 0, betas: [0.9, 0.999]}
   scheduler: {type: CosineAnnealingRestartLR, periods: [50000], restart_weights: [1], eta_min: 1.0e-6}
@@ -109,6 +114,6 @@ train:
   identity_loss_weight: 1.0
   replay_severity_loss_weight: 1.0
   type_loss_weight: 1.0
-val: {val_freq: 10000, save_img: false}
-logger: {print_freq: 100, save_checkpoint_freq: 10000, use_tb_logger: true, wandb: {project: null}}
+val: {val_freq: 50000, save_img: false}
+logger: {print_freq: 100, save_checkpoint_freq: 25000, use_tb_logger: true, wandb: {project: null}}
 dist_params: {backend: nccl, port: 29632}
